@@ -35,8 +35,9 @@ COLUMN_MAP: dict[str, str] = {
 
 # Valores de fallback para campos do cliente quando vierem vazios
 FIELD_FILL_DEFAULTS: dict[str, str] = {
-    "Unidade":      "UN",
-    "Preço Venda":  "0,00",
+    "Unidade":        "UN",
+    "Preço Venda":    "0,00",
+    "Preço Compra":   "0,00",
 }
 
 # Campos obrigatórios (nomes do template)
@@ -55,8 +56,8 @@ FIELD_RULES: dict[str, dict] = {
     "CFOP":                {"type": "digits",   "length": 4},
     "Preço Venda":         {"type": "currency"},
     "Preço Compra":        {"type": "currency"},
-    "PIS":                 {"type": "currency"},
-    "COFINS":              {"type": "currency"},
+    "PIS":                 {"type": "decimal"},
+    "COFINS":              {"type": "decimal"},
     "Imposto":             {"type": "currency"},
     "PER_REDUCAO_BC_ICMS": {"type": "currency"},
     "Quantidade Estoque":  {"type": "decimal"},

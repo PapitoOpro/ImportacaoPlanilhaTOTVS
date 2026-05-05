@@ -54,7 +54,7 @@ def main() -> None:
     parser.add_argument("input", help="Planilha do cliente (.xls/.xlsx/.csv)")
     parser.add_argument(
         "--output", "-o",
-        default=str(_ROOT / "output" / "loja_pronta.xlsx"),
+        default=str(_ROOT / "output" / "PlanilhaImportaçãoLoja.xlsm"),
         help="Arquivo de saída",
     )
     parser.add_argument(

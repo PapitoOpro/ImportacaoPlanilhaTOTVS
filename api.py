@@ -53,7 +53,7 @@ async def processar(file: UploadFile = File(...)):
         session_dir = Path(tempfile.gettempdir()) / session_id
         session_dir.mkdir()
 
-        output_path = session_dir / "loja_pronta.xlsx"
+        output_path = session_dir / "PlanilhaImportaçãoLoja.xlsm"
         error_path = session_dir / "erros.xlsx"
 
         write_output(valid_df, output_path)
@@ -88,8 +88,8 @@ async def download_resultado(session_id: str):
         raise HTTPException(status_code=404, detail="Sessão expirada ou arquivo não encontrado")
     return FileResponse(
         path=session["output"],
-        filename="loja_pronta.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="PlanilhaImportaçãoLoja.xlsm",
+        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
     )
 
 

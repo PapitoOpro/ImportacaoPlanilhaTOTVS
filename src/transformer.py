@@ -37,14 +37,27 @@ def _to_bool(value: str) -> str:
     return "1" if v in {"SIM", "S", "X", "1", "TRUE", "VERDADEIRO"} else "0"
 
 
+def _to_number(value: str) -> str:
+    """Formata número decimal com vírgula (ex: 0,65 / 3,00). Sem prefixo R$."""
+    cleaned = re.sub(r"[^\d,.]", "", value)
+    if "," in cleaned and "." in cleaned:
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+    elif "," in cleaned:
+        cleaned = cleaned.replace(",", ".")
+    try:
+        return f"{float(cleaned):.2f}".replace(".", ",")
+    except ValueError:
+        return ""
+
+
 _FORMATTERS: dict[str, Any] = {
     "COD_NCM":                {"fn": lambda v: _digits_only(v).zfill(8)},
     "Cod_CEST":               {"fn": lambda v: _digits_only(v).zfill(7)},
     "CFOP":                   {"fn": lambda v: _digits_only(v)[:4]},
     "Preço Venda":            {"fn": _to_currency},
     "Preço Compra":           {"fn": _to_currency},
-    "PIS":                    {"fn": _to_currency},
-    "COFINS":                 {"fn": _to_currency},
+    "PIS":                    {"fn": _to_number},
+    "COFINS":                 {"fn": _to_number},
     "Imposto":                {"fn": _to_currency},
     "PER_REDUCAO_BC_ICMS":    {"fn": _to_currency},
     "Pesável":                {"fn": _to_bool},
@@ -136,6 +149,17 @@ def transform(
     for col, rule in _FORMATTERS.items():
         if col in df.columns:
             df[col] = df[col].apply(lambda v: rule["fn"](_clean(v)) if _clean(v) else "")
+
+    # Copia Nome Produto → Texto Fiscal / Texto Botão Touch / Texto Botao Pocket
+    if "Nome Produto" in df.columns:
+        for txt_col in ("Texto Fiscal", "Texto Botão Touch", "Texto Botao Pocket"):
+            if txt_col not in df.columns or df[txt_col].apply(lambda v: str(v).strip() == "").all():
+                df[txt_col] = df["Nome Produto"]
+            else:
+                df[txt_col] = df.apply(
+                    lambda row: row["Nome Produto"] if str(row[txt_col]).strip() == "" else row[txt_col],
+                    axis=1,
+                )
 
     # Garante todas as colunas do template, com defaults
     for col in template_columns:

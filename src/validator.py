@@ -33,7 +33,7 @@ def _check_currency(val: str) -> str | None:
 
 def _check_decimal(val: str) -> str | None:
     try:
-        float(val)
+        float(val.replace(",", "."))
     except ValueError:
         return "Formato numérico inválido"
     return None
