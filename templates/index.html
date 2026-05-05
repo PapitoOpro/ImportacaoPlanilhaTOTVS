@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TOTVS Food — Importação de Produtos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .drop-active { border-color: #2563eb; background: #eff6ff; }
+    .fade-in { animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
+
+  <!-- Header -->
+  <div class="w-full max-w-2xl mb-8 text-center">
+    <h1 class="text-2xl font-bold text-gray-800">Importação de Produtos</h1>
+    <p class="text-gray-500 mt-1 text-sm">TOTVS Food 5.0 — Automação de cadastro</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+
+    <!-- Drop Zone -->
+    <div id="dropzone"
+         class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer transition-all"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="onDragOver(event)"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event)">
+      <div id="dropContent">
+        <svg class="mx-auto mb-3 text-gray-400 w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+        </svg>
+        <p class="text-gray-600 font-medium">Arraste a planilha aqui</p>
+        <p class="text-gray-400 text-sm mt-1">ou clique para selecionar</p>
+        <p class="text-gray-300 text-xs mt-3">.xls · .xlsx · .csv</p>
+      </div>
+    </div>
+    <input id="fileInput" type="file" accept=".xls,.xlsx,.xlsm,.csv" class="hidden" onchange="onFileSelected(event)" />
+
+    <!-- File selected indicator -->
+    <div id="fileInfo" class="hidden mt-4 flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+      <svg class="text-blue-500 w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <span id="fileName" class="text-sm text-blue-700 font-medium truncate flex-1"></span>
+      <button onclick="resetForm()" class="text-gray-400 hover:text-gray-600 shrink-0">✕</button>
+    </div>
+
+    <!-- Process Button -->
+    <button id="btnProcessar"
+            onclick="processar()"
+            class="hidden mt-5 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors">
+      Processar planilha
+    </button>
+
+    <!-- Loading -->
+    <div id="loading" class="hidden mt-5 flex items-center justify-center gap-3 text-gray-500">
+      <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      <span class="text-sm">Processando...</span>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden w-full max-w-2xl mt-6 fade-in">
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+        <p class="text-3xl font-bold text-gray-800" id="statTotal">0</p>
+        <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Total</p>
+      </div>
+      <div class="bg-white rounded-xl border border-green-200 p-5 text-center shadow-sm">
+        <p class="text-3xl font-bold text-green-600" id="statExportados">0</p>
+        <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Exportados</p>
+      </div>
+      <div class="bg-white rounded-xl border border-red-200 p-5 text-center shadow-sm">
+        <p class="text-3xl font-bold text-red-500" id="statRejeitados">0</p>
+        <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Rejeitados</p>
+      </div>
+    </div>
+
+    <!-- Download Buttons -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Downloads</h2>
+      <div class="flex flex-col gap-3">
+        <a id="linkResultado" href="#" target="_blank"
+           class="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Baixar planilha pronta (loja_pronta.xlsx)
+        </a>
+        <a id="linkErros" href="#" target="_blank"
+           class="hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          Baixar relatório de erros (erros.xlsx)
+        </a>
+      </div>
+
+      <!-- Error Table -->
+      <div id="errosContainer" class="hidden mt-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Linhas rejeitadas</h2>
+        <div class="overflow-x-auto rounded-xl border border-gray-100">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr>
+                <th class="py-2 px-3 text-left">Linha</th>
+                <th class="py-2 px-3 text-left">Campo</th>
+                <th class="py-2 px-3 text-left">Valor</th>
+                <th class="py-2 px-3 text-left">Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="errosBody" class="divide-y divide-gray-100 text-gray-700"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- New File Button -->
+    <button onclick="resetForm()" class="mt-4 w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors">
+      ← Processar outro arquivo
+    </button>
+  </div>
+
+<script>
+  let selectedFile = null;
+
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('drop-active');
+  }
+  function onDragLeave(e) {
+    document.getElementById('dropzone').classList.remove('drop-active');
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('drop-active');
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+  }
+  function onFileSelected(e) {
+    const file = e.target.files[0];
+    if (file) setFile(file);
+  }
+  function setFile(file) {
+    selectedFile = file;
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileInfo').classList.remove('hidden');
+    document.getElementById('btnProcessar').classList.remove('hidden');
+    document.getElementById('results').classList.add('hidden');
+  }
+  function resetForm() {
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileInfo').classList.add('hidden');
+    document.getElementById('btnProcessar').classList.add('hidden');
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('loading').classList.add('hidden');
+  }
+
+  async function processar() {
+    if (!selectedFile) return;
+
+    document.getElementById('btnProcessar').classList.add('hidden');
+    document.getElementById('loading').classList.remove('hidden');
+    document.getElementById('results').classList.add('hidden');
+
+    const form = new FormData();
+    form.append('file', selectedFile);
+
+    try {
+      const res = await fetch('/processar', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert('Erro: ' + (data.detail || 'Falha no processamento'));
+        document.getElementById('btnProcessar').classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('statTotal').textContent = data.stats.total;
+      document.getElementById('statExportados').textContent = data.stats.exportados;
+      document.getElementById('statRejeitados').textContent = data.stats.rejeitados;
+
+      document.getElementById('linkResultado').href = `/download/${data.session_id}/resultado`;
+
+      const linkErros = document.getElementById('linkErros');
+      const errosContainer = document.getElementById('errosContainer');
+
+      if (data.erros && data.erros.length > 0) {
+        linkErros.href = `/download/${data.session_id}/erros`;
+        linkErros.classList.remove('hidden');
+
+        const tbody = document.getElementById('errosBody');
+        tbody.innerHTML = data.erros.map(e => `
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 px-3">${e.linha}</td>
+            <td class="py-2 px-3 font-medium">${e.campo}</td>
+            <td class="py-2 px-3 text-gray-400">${e.valor || '—'}</td>
+            <td class="py-2 px-3 text-red-500">${e.motivo}</td>
+          </tr>`).join('');
+
+        errosContainer.classList.remove('hidden');
+      } else {
+        linkErros.classList.add('hidden');
+        errosContainer.classList.add('hidden');
+      }
+
+      document.getElementById('results').classList.remove('hidden');
+    } catch (err) {
+      alert('Erro de conexão. Tente novamente.');
+      document.getElementById('btnProcessar').classList.remove('hidden');
+    } finally {
+      document.getElementById('loading').classList.add('hidden');
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+output/
+input_teste.xlsx
+.env
+*.tmp
+*.xls
+*.xlsm
+ImportacaoPlanilhaTOTVS/
