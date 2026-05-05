@@ -1,16 +1,32 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 
+import openpyxl
 import pandas as pd
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 from validator import ValidationError
 
 
-def write_output(df: pd.DataFrame, output_path: Path) -> None:
+def write_output(df: pd.DataFrame, output_path: Path, template_path: Path | None = None) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    if template_path and template_path.exists():
+        wb = openpyxl.load_workbook(template_path, keep_vba=True)
+        ws = wb["Produtos"]
+        # Remove todas as linhas de dados, mantendo apenas o cabeçalho (linha 1)
+        if ws.max_row > 1:
+            ws.delete_rows(2, ws.max_row - 1)
+        # Escreve os dados a partir da linha 2
+        for row_data in dataframe_to_rows(df, index=False, header=False):
+            ws.append(row_data)
+        wb.save(output_path)
+        return
+
+    # Fallback: gera xlsx simples (sem VBA)
+    output_path = output_path.with_suffix(".xlsx")
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Produtos")
         ws = writer.sheets["Produtos"]

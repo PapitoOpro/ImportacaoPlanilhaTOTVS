@@ -12,6 +12,7 @@ from validator import validate
 from writer import write_error_report, write_output
 
 _ROOT = Path(__file__).parent.parent
+_TEMPLATE = _ROOT / "PlanilhaImportaçãoLojaComValidação.xlsm"
 
 
 def run(input_path: Path, output_path: Path, error_path: Path) -> int:
@@ -38,7 +39,7 @@ def run(input_path: Path, output_path: Path, error_path: Path) -> int:
     print(f"      {len(valid_df)} linha(s) válida(s) para exportação")
 
     print(f"[4/4] Exportando: {output_path.name}")
-    write_output(valid_df, output_path)
+    write_output(valid_df, output_path, template_path=_TEMPLATE)
 
     print(f"\n[OK] Concluido -> {output_path}")
     if errors:

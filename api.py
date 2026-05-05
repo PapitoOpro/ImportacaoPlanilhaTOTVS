@@ -18,6 +18,7 @@ from validator import validate
 from writer import write_error_report, write_output
 
 _BASE = Path(__file__).parent
+_TEMPLATE = _BASE / "PlanilhaImportaçãoLojaComValidação.xlsm"
 
 app = FastAPI(title="TOTVS Food — Importação de Produtos")
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
@@ -56,7 +57,7 @@ async def processar(file: UploadFile = File(...)):
         output_path = session_dir / "PlanilhaImportaçãoLoja.xlsm"
         error_path = session_dir / "erros.xlsx"
 
-        write_output(valid_df, output_path)
+        write_output(valid_df, output_path, template_path=_TEMPLATE)
         if errors:
             write_error_report(errors, error_path)
 
