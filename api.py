@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-import json
+import base64
+import shutil
 import sys
 import tempfile
-import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -20,27 +20,9 @@ from writer import write_error_report, write_output
 
 _BASE = Path(__file__).parent
 _TEMPLATE = _BASE / "PlanilhaImportaçãoLojaComValidação.xlsm"
-_SESSIONS_DIR = Path(tempfile.gettempdir()) / "totvs_sessions"
-_SESSIONS_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="TOTVS Food — Importação de Produtos")
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
-
-
-def _save_session(session_id: str, output: Path, error_file: Path | None) -> None:
-    meta = {"output": str(output), "error_file": str(error_file) if error_file else None}
-    (_SESSIONS_DIR / f"{session_id}.json").write_text(json.dumps(meta))
-
-
-def _load_session(session_id: str) -> dict | None:
-    meta_file = _SESSIONS_DIR / f"{session_id}.json"
-    if not meta_file.exists():
-        return None
-    meta = json.loads(meta_file.read_text())
-    return {
-        "output": Path(meta["output"]),
-        "error_file": Path(meta["error_file"]) if meta.get("error_file") else None,
-    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -55,34 +37,30 @@ async def processar(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Formato não suportado. Use .xls, .xlsx ou .csv")
 
     content = await file.read()
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(content)
-        tmp_path = Path(tmp.name)
+    work_dir = Path(tempfile.mkdtemp())
 
     try:
-        df = read_client_file(tmp_path)
+        input_path = work_dir / f"input{suffix}"
+        input_path.write_bytes(content)
+
+        df = read_client_file(input_path)
         df = transform(df, COLUMN_MAP, TEMPLATE_DEFAULTS, TEMPLATE_COLUMNS, FIELD_FILL_DEFAULTS)
         errors = validate(df, REQUIRED_FIELDS, FIELD_RULES)
 
         invalid_idx = {e.row - 3 for e in errors}
         valid_df = df[~df.index.isin(invalid_idx)].reset_index(drop=True)
 
-        session_id = str(uuid.uuid4())
-        session_dir = _SESSIONS_DIR / session_id
-        session_dir.mkdir()
-
-        output_path = session_dir / "PlanilhaImportaçãoLoja.xlsm"
-        error_path = session_dir / "erros.xlsx"
-
+        output_path = work_dir / "output.xlsm"
         write_output(valid_df, output_path, template_path=_TEMPLATE)
-        error_file = error_path if errors else None
-        if errors:
-            write_error_report(errors, error_path)
+        arquivo_b64 = base64.b64encode(output_path.read_bytes()).decode()
 
-        _save_session(session_id, output_path, error_file)
+        arquivo_erros_b64 = None
+        if errors:
+            error_path = work_dir / "erros.xlsx"
+            write_error_report(errors, error_path)
+            arquivo_erros_b64 = base64.b64encode(error_path.read_bytes()).decode()
 
         return JSONResponse({
-            "session_id": session_id,
             "stats": {
                 "total":      len(df),
                 "exportados": len(valid_df),
@@ -92,30 +70,8 @@ async def processar(file: UploadFile = File(...)):
                 {"linha": e.row, "campo": e.field, "valor": e.value, "motivo": e.reason}
                 for e in errors
             ],
+            "arquivo":        arquivo_b64,
+            "arquivo_erros":  arquivo_erros_b64,
         })
     finally:
-        tmp_path.unlink(missing_ok=True)
-
-
-@app.get("/download/{session_id}/resultado")
-async def download_resultado(session_id: str):
-    session = _load_session(session_id)
-    if not session or not session["output"].exists():
-        raise HTTPException(status_code=404, detail="Sessão expirada. Processe o arquivo novamente.")
-    return FileResponse(
-        path=session["output"],
-        filename="PlanilhaImportaçãoLoja.xlsm",
-        media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
-    )
-
-
-@app.get("/download/{session_id}/erros")
-async def download_erros(session_id: str):
-    session = _load_session(session_id)
-    if not session or not session.get("error_file") or not session["error_file"].exists():
-        raise HTTPException(status_code=404, detail="Nenhum relatório de erros disponível.")
-    return FileResponse(
-        path=session["error_file"],
-        filename="erros.xlsx",
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+        shutil.rmtree(work_dir, ignore_errors=True)

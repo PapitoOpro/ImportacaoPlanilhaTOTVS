@@ -91,7 +91,7 @@
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
       <h2 class="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Downloads</h2>
       <div class="flex flex-col gap-3">
-        <button id="btnResultado" onclick="baixar('resultado', 'PlanilhaImportaçãoLoja.xlsm')"
+        <button id="btnResultado" onclick="baixarB64(arquivoB64, 'PlanilhaImportaçãoLoja.xlsm', 'application/vnd.ms-excel.sheet.macroEnabled.12')"
            class="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -99,7 +99,7 @@
           </svg>
           Baixar PlanilhaImportaçãoLoja.xlsm
         </button>
-        <button id="btnErros" onclick="baixar('erros', 'erros.xlsx')"
+        <button id="btnErros" onclick="baixarB64(arquivoErrosB64, 'erros.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')"
            class="hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -136,7 +136,8 @@
 
 <script>
   let selectedFile = null;
-  let currentSessionId = null;
+  let arquivoB64 = null;
+  let arquivoErrosB64 = null;
 
   function onDragOver(e) {
     e.preventDefault();
@@ -164,7 +165,8 @@
   }
   function resetForm() {
     selectedFile = null;
-    currentSessionId = null;
+    arquivoB64 = null;
+    arquivoErrosB64 = null;
     document.getElementById('fileInput').value = '';
     document.getElementById('fileInfo').classList.add('hidden');
     document.getElementById('btnProcessar').classList.add('hidden');
@@ -172,26 +174,18 @@
     document.getElementById('loading').classList.add('hidden');
   }
 
-  async function baixar(tipo, filename) {
-    if (!currentSessionId) return;
-    const url = `/download/${currentSessionId}/${tipo}`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        alert('Sessão expirada. Processe o arquivo novamente.');
-        return;
-      }
-      const blob = await res.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch {
-      alert('Erro ao baixar. Tente novamente.');
-    }
+  function baixarB64(b64, filename, mime) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
   }
 
   async function processar() {
@@ -214,7 +208,8 @@
         return;
       }
 
-      currentSessionId = data.session_id;
+      arquivoB64 = data.arquivo;
+      arquivoErrosB64 = data.arquivo_erros || null;
 
       document.getElementById('statTotal').textContent = data.stats.total;
       document.getElementById('statExportados').textContent = data.stats.exportados;
@@ -225,7 +220,6 @@
 
       if (data.erros && data.erros.length > 0) {
         btnErros.classList.remove('hidden');
-
         const tbody = document.getElementById('errosBody');
         tbody.innerHTML = data.erros.map(e => `
           <tr class="hover:bg-gray-50">
@@ -234,7 +228,6 @@
             <td class="py-2 px-3 text-gray-400">${e.valor || '—'}</td>
             <td class="py-2 px-3 text-red-500">${e.motivo}</td>
           </tr>`).join('');
-
         errosContainer.classList.remove('hidden');
       } else {
         btnErros.classList.add('hidden');
