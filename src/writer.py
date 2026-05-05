@@ -10,18 +10,90 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from validator import ValidationError
 
 
+def _build_grupo_subgrupo(df: pd.DataFrame) -> list[dict]:
+    """
+    Retorna lista única de grupos e subgrupos ordenada alfabeticamente.
+    Grupos (topo): coluna 'Grupo' vazia.
+    Subgrupos: coluna 'Grupo' = nome do grupo pai.
+    """
+    entries: dict[str, dict] = {}
+
+    if "Grupo" in df.columns:
+        for g in df["Grupo"].dropna():
+            g = str(g).strip()
+            if g and g not in entries:
+                entries[g] = {"Descrição": g, "Grupo": ""}
+
+    if "SubGrupo" in df.columns and "Grupo" in df.columns:
+        for _, row in df[["Grupo", "SubGrupo"]].dropna(subset=["SubGrupo"]).iterrows():
+            sub = str(row["SubGrupo"]).strip()
+            pai = str(row["Grupo"]).strip()
+            if sub and sub not in entries:
+                entries[sub] = {"Descrição": sub, "Grupo": pai}
+
+    ordered = sorted(entries.values(), key=lambda x: x["Descrição"])
+    for i, e in enumerate(ordered, start=1):
+        e["Código"] = i
+        e["Loja"] = ""
+        e["Exibir na Venda"] = 1
+        e["Ordem"] = 0
+        e["Pedido Completo"] = 0
+
+    return ordered
+
+
+def _write_grupo_subgrupo(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
+    aba = next((n for n in wb.sheetnames if "grupo" in n.lower()), None)
+    if not aba:
+        return
+
+    ws = wb[aba]
+
+    # Detecta colunas pelo cabeçalho da linha 1
+    col_map: dict[str, int] = {}
+    for c in range(1, ws.max_column + 1):
+        val = ws.cell(1, c).value
+        if val:
+            col_map[str(val).strip()] = c
+
+    # Limpa dados existentes (mantém cabeçalho)
+    if ws.max_row > 1:
+        ws.delete_rows(2, ws.max_row - 1)
+
+    entries = _build_grupo_subgrupo(df)
+
+    # Mapeamento nome-coluna → posição
+    campo_col = {
+        "Código":          col_map.get("Código") or col_map.get("C\xf3digo") or 1,
+        "Descrição":       col_map.get("Descrição") or col_map.get("Descri\xe7\xe3o") or 2,
+        "Grupo":           col_map.get("Grupo") or 3,
+        "Loja":            col_map.get("Loja") or 4,
+        "Exibir na Venda": col_map.get("Exibir na Venda") or 5,
+        "Ordem":           col_map.get("Ordem") or 6,
+        "Pedido Completo": col_map.get("Pedido Completo") or 7,
+    }
+
+    for i, e in enumerate(entries, start=2):
+        for campo, col_idx in campo_col.items():
+            ws.cell(i, col_idx, e.get(campo, ""))
+
+
 def write_output(df: pd.DataFrame, output_path: Path, template_path: Path | None = None) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if template_path and template_path.exists():
         wb = openpyxl.load_workbook(template_path, keep_vba=True)
+
+        # Aba Produtos
         ws = wb["Produtos"]
-        # Remove todas as linhas de dados, mantendo apenas o cabeçalho (linha 1)
         if ws.max_row > 1:
             ws.delete_rows(2, ws.max_row - 1)
-        # Escreve os dados a partir da linha 2
         for row_data in dataframe_to_rows(df, index=False, header=False):
             ws.append(row_data)
+
+        # Aba Grupo E Subgrupo
+        _write_grupo_subgrupo(wb, df)
+
         wb.save(output_path)
         return
 

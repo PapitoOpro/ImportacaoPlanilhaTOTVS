@@ -7,7 +7,6 @@ Chaves do COLUMN_MAP são normalizadas (sem acento, maiúsculo, sem quebra de li
 # Coluna do cliente (normalizada) → coluna exata do template
 COLUMN_MAP: dict[str, str] = {
     "CODIGO PRODUTO VENDA": "Código Produto",
-    "CODIGO DE BARRAS": "Cod GTIN NF-e",
     "NOME PRODUTO": "Nome Produto",
     "PRODUTO PESAVEL?": "Pesável",
     "VENDA FRACIONADA?": "Permitir Venda Fracionada",
