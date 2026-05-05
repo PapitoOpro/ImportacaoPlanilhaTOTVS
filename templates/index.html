@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TOTVS Food — Importação de Produtos</title>
+  <title>Importação de Planilha</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .drop-active { border-color: #2563eb; background: #eff6ff; }
@@ -91,22 +91,22 @@
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
       <h2 class="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Downloads</h2>
       <div class="flex flex-col gap-3">
-        <a id="linkResultado" href="#" target="_blank"
-           class="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors">
+        <button id="btnResultado" onclick="baixar('resultado', 'PlanilhaImportaçãoLoja.xlsm')"
+           class="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
           </svg>
           Baixar PlanilhaImportaçãoLoja.xlsm
-        </a>
-        <a id="linkErros" href="#" target="_blank"
-           class="hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors">
+        </button>
+        <button id="btnErros" onclick="baixar('erros', 'erros.xlsx')"
+           class="hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
           </svg>
           Baixar relatório de erros (erros.xlsx)
-        </a>
+        </button>
       </div>
 
       <!-- Error Table -->
@@ -136,6 +136,7 @@
 
 <script>
   let selectedFile = null;
+  let currentSessionId = null;
 
   function onDragOver(e) {
     e.preventDefault();
@@ -163,11 +164,34 @@
   }
   function resetForm() {
     selectedFile = null;
+    currentSessionId = null;
     document.getElementById('fileInput').value = '';
     document.getElementById('fileInfo').classList.add('hidden');
     document.getElementById('btnProcessar').classList.add('hidden');
     document.getElementById('results').classList.add('hidden');
     document.getElementById('loading').classList.add('hidden');
+  }
+
+  async function baixar(tipo, filename) {
+    if (!currentSessionId) return;
+    const url = `/download/${currentSessionId}/${tipo}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        alert('Sessão expirada. Processe o arquivo novamente.');
+        return;
+      }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch {
+      alert('Erro ao baixar. Tente novamente.');
+    }
   }
 
   async function processar() {
@@ -190,18 +214,17 @@
         return;
       }
 
+      currentSessionId = data.session_id;
+
       document.getElementById('statTotal').textContent = data.stats.total;
       document.getElementById('statExportados').textContent = data.stats.exportados;
       document.getElementById('statRejeitados').textContent = data.stats.rejeitados;
 
-      document.getElementById('linkResultado').href = `/download/${data.session_id}/resultado`;
-
-      const linkErros = document.getElementById('linkErros');
+      const btnErros = document.getElementById('btnErros');
       const errosContainer = document.getElementById('errosContainer');
 
       if (data.erros && data.erros.length > 0) {
-        linkErros.href = `/download/${data.session_id}/erros`;
-        linkErros.classList.remove('hidden');
+        btnErros.classList.remove('hidden');
 
         const tbody = document.getElementById('errosBody');
         tbody.innerHTML = data.erros.map(e => `
@@ -214,7 +237,7 @@
 
         errosContainer.classList.remove('hidden');
       } else {
-        linkErros.classList.add('hidden');
+        btnErros.classList.add('hidden');
         errosContainer.classList.add('hidden');
       }
 
