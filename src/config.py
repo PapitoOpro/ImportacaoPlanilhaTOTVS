@@ -20,7 +20,7 @@ COLUMN_MAP: dict[str, str] = {
     "CEST": "Cod_CEST",
     "TRIBUTO": "Tributo",
     "IMPOSTO (% ICMS)": "Imposto",
-    "CFOP": "CFOP",
+    "CFOP": "CFOP_Venda",
     "CST OU CSOSN": "CST_CSOSN_Venda",
     "CST PIS": "CST_PIS",
     "PIS CALCULO": "PIS_Tipo_Calculo",
