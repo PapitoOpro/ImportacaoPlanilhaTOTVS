@@ -5,7 +5,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -31,7 +31,7 @@ async def index():
 
 
 @app.post("/processar")
-async def processar(file: UploadFile = File(...)):
+async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
     suffix = Path(file.filename).suffix.lower()
     if suffix not in (".xls", ".xlsx", ".xlsm", ".csv"):
         raise HTTPException(status_code=400, detail="Formato não suportado. Use .xls, .xlsx ou .csv")
@@ -51,7 +51,7 @@ async def processar(file: UploadFile = File(...)):
         valid_df = df[~df.index.isin(invalid_idx)].reset_index(drop=True)
 
         output_path = work_dir / "output.xlsm"
-        write_output(valid_df, output_path, template_path=_TEMPLATE)
+        write_output(valid_df, output_path, template_path=_TEMPLATE, numero_loja=numero_loja.strip())
         arquivo_b64 = base64.b64encode(output_path.read_bytes()).decode()
 
         arquivo_erros_b64 = None

@@ -69,7 +69,7 @@ def _build_grupo_subgrupo(df: pd.DataFrame) -> list[dict]:
     return entries
 
 
-def _write_grupo_subgrupo(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
+def _write_grupo_subgrupo(wb: openpyxl.Workbook, df: pd.DataFrame, numero_loja: str = "") -> None:
     aba = next((n for n in wb.sheetnames if "grupo" in n.lower()), None)
     if not aba:
         return
@@ -103,9 +103,11 @@ def _write_grupo_subgrupo(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
     for i, e in enumerate(entries, start=2):
         for campo, col_idx in campo_col.items():
             ws.cell(i, col_idx, e.get(campo, ""))
+        if "Loja" in campo_col and numero_loja:
+            ws.cell(i, campo_col["Loja"], numero_loja)
 
 
-def _write_unidades(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
+def _write_unidades(wb: openpyxl.Workbook, df: pd.DataFrame, numero_loja: str = "") -> None:
     aba = next((n for n in wb.sheetnames if "unidade" in n.lower()), None)
     if not aba:
         return
@@ -135,14 +137,24 @@ def _write_unidades(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
         desc = _UNIDADE_DESC.get(un, un)
         ws.cell(i, col_un, un)
         ws.cell(i, col_desc, desc)
-        ws.cell(i, col_loja, "")
+        ws.cell(i, col_loja, numero_loja)
 
 
-def write_output(df: pd.DataFrame, output_path: Path, template_path: Path | None = None) -> None:
+def write_output(
+    df: pd.DataFrame,
+    output_path: Path,
+    template_path: Path | None = None,
+    numero_loja: str = "",
+) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if template_path and template_path.exists():
         wb = openpyxl.load_workbook(template_path, keep_vba=True)
+
+        # Preenche coluna Loja nos Produtos
+        if numero_loja and "Loja" in df.columns:
+            df = df.copy()
+            df["Loja"] = numero_loja
 
         # Aba Produtos
         ws = wb["Produtos"]
@@ -152,10 +164,10 @@ def write_output(df: pd.DataFrame, output_path: Path, template_path: Path | None
             ws.append(row_data)
 
         # Aba Grupo E Subgrupo
-        _write_grupo_subgrupo(wb, df)
+        _write_grupo_subgrupo(wb, df, numero_loja)
 
         # Aba Unidades
-        _write_unidades(wb, df)
+        _write_unidades(wb, df, numero_loja)
 
         wb.save(output_path)
         return
