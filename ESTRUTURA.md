@@ -88,14 +88,55 @@ Lista ordenada com todas as ~90 colunas do template TOTVS Food 5.0. Define a ord
 
 ---
 
+## Planilha de Entrada — PLANILHA DE CADASTROS TOTVS FOOD 5.0.xls
+
+Arquivo fornecido ao cliente para preenchimento.
+
+- **Formato:** `.xls` (Excel 97-2003)
+- **Aba:** `1. Produtos de Venda`
+- **Estrutura:** linha 0 = seções mescladas (ignorada), linha 1 = cabeçalhos reais, linha 2+ = dados
+- **88 produtos** no exemplo de referência
+
+| Coluna do cliente | Mapeado para |
+|---|---|
+| CÓDIGO PRODUTO VENDA | Código Produto |
+| CÓDIGO DE BARRAS | Cod GTIN NF-e |
+| NOME PRODUTO | Nome Produto |
+| PRODUTO PESÁVEL? | Pesável |
+| VENDA FRACIONADA? | Permitir Venda Fracionada |
+| UNIDADE DE MEDIDA | Unidade |
+| GRUPO | Grupo |
+| SUBGRUPO | SubGrupo |
+| PREÇO DE COMPRA | Preço Compra |
+| PREÇO DE VENDA | Preço Venda |
+| LOCAL DE IMPRESSÃO (COZINHA, BAR, ETC) | Local Impressão |
+| NCM | COD_NCM |
+| CEST | Cod_CEST |
+| TRIBUTO | Tributo |
+| IMPOSTO (% ICMS) | Imposto |
+| CFOP | CFOP |
+| CST OU CSOSN | CST_CSOSN_Venda |
+| CST PIS | CST_PIS |
+| PIS CALCULO | PIS_Tipo_Calculo |
+| ALÍQUOTA PIS | PIS |
+| CST COFINS | CST_COFINS |
+| COFINS CALCULO | COFINS_Tipo_Calculo |
+| ALÍQUOTA COFINS | COFINS |
+| CÓDIGO BENEFÍCIO FISCAL | CodigoBeneficioRBC |
+| REDUÇÃO ICMS (%) | PER_REDUCAO_BC_ICMS |
+
+---
+
 ## src/reader.py
 
 ```python
 read_client_file(path: Path) -> pd.DataFrame
 ```
-- Aceita `.xlsx`, `.xlsm`, `.xls`, `.csv`
-- Normaliza nomes de colunas: remove acentos, converte para maiúsculo, colapsa espaços
-- Retorna DataFrame com todas as colunas como `str`
+- Aceita `.xls` (lê aba `1. Produtos de Venda`, header na linha 1 — pula seção mesclada da linha 0)
+- Aceita `.xlsx`, `.xlsm` (header na linha 0)
+- Aceita `.csv` (detecção automática de encoding e separador)
+- Normaliza nomes de colunas: remove acentos, uppercase, colapsa espaços e quebras de linha
+- Retorna DataFrame com todas as colunas como `str`, sem linhas totalmente vazias
 
 ---
 
