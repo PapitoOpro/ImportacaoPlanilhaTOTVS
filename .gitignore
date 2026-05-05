@@ -6,6 +6,5 @@ output/
 input_teste.xlsx
 .env
 *.tmp
-*.xls
-*.xlsm
+input_teste.xls
 ImportacaoPlanilhaTOTVS/

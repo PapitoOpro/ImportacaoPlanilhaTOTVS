@@ -172,8 +172,7 @@ def write_output(
         wb.save(output_path)
         return
 
-    # Fallback: gera xlsx simples (sem VBA)
-    output_path = output_path.with_suffix(".xlsx")
+    # Fallback: gera xlsx simples (sem VBA) — mantém o path exato recebido
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Produtos")
         ws = writer.sheets["Produtos"]
