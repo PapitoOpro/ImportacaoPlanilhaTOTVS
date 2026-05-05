@@ -12,34 +12,44 @@ from validator import ValidationError
 
 def _build_grupo_subgrupo(df: pd.DataFrame) -> list[dict]:
     """
-    Retorna lista única de grupos e subgrupos ordenada alfabeticamente.
-    Grupos (topo): coluna 'Grupo' vazia.
-    Subgrupos: coluna 'Grupo' = nome do grupo pai.
+    Retorna lista única de grupos e subgrupos.
+    Grupos primeiro (alfabético), depois subgrupos (alfabético).
+    Coluna Grupo = 'GRUPO' ou 'SUBGRUPO'.
+    Ordem = 0 para grupos, sequencial (1,2,3…) para subgrupos.
     """
-    entries: dict[str, dict] = {}
+    grupos: set[str] = set()
+    subgrupos: set[str] = set()
 
     if "Grupo" in df.columns:
         for g in df["Grupo"].dropna():
             g = str(g).strip()
-            if g and g not in entries:
-                entries[g] = {"Descrição": g, "Grupo": ""}
+            if g:
+                grupos.add(g)
 
-    if "SubGrupo" in df.columns and "Grupo" in df.columns:
-        for _, row in df[["Grupo", "SubGrupo"]].dropna(subset=["SubGrupo"]).iterrows():
-            sub = str(row["SubGrupo"]).strip()
-            pai = str(row["Grupo"]).strip()
-            if sub and sub not in entries:
-                entries[sub] = {"Descrição": sub, "Grupo": pai}
+    if "SubGrupo" in df.columns:
+        for s in df["SubGrupo"].dropna():
+            s = str(s).strip()
+            if s:
+                subgrupos.add(s)
 
-    ordered = sorted(entries.values(), key=lambda x: x["Descrição"])
-    for i, e in enumerate(ordered, start=1):
-        e["Código"] = i
-        e["Loja"] = ""
-        e["Exibir na Venda"] = 1
-        e["Ordem"] = 0
-        e["Pedido Completo"] = 0
+    entries: list[dict] = []
+    codigo = 1
 
-    return ordered
+    for g in sorted(grupos):
+        entries.append({
+            "Código": codigo, "Descrição": g, "Grupo": "GRUPO",
+            "Loja": "", "Exibir na Venda": 1, "Ordem": 0, "Pedido Completo": 0,
+        })
+        codigo += 1
+
+    for i, s in enumerate(sorted(subgrupos), start=1):
+        entries.append({
+            "Código": codigo, "Descrição": s, "Grupo": "SUBGRUPO",
+            "Loja": "", "Exibir na Venda": 1, "Ordem": i, "Pedido Completo": 0,
+        })
+        codigo += 1
+
+    return entries
 
 
 def _write_grupo_subgrupo(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
