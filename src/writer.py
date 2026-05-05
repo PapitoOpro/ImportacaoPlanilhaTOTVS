@@ -9,6 +9,23 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 
 from validator import ValidationError
 
+_UNIDADE_DESC: dict[str, str] = {
+    "UN":  "UNIDADE",
+    "KG":  "QUILOGRAMA",
+    "G":   "GRAMA",
+    "LT":  "LITRO",
+    "ML":  "MILILITRO",
+    "MT":  "METRO",
+    "CM":  "CENTIMETRO",
+    "CX":  "CAIXA",
+    "PC":  "PECA",
+    "PT":  "POTE",
+    "SC":  "SACO",
+    "DZ":  "DUZIA",
+    "FD":  "FARDO",
+    "BDJ": "BANDEJA",
+}
+
 
 def _build_grupo_subgrupo(df: pd.DataFrame) -> list[dict]:
     """
@@ -88,6 +105,39 @@ def _write_grupo_subgrupo(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
             ws.cell(i, col_idx, e.get(campo, ""))
 
 
+def _write_unidades(wb: openpyxl.Workbook, df: pd.DataFrame) -> None:
+    aba = next((n for n in wb.sheetnames if "unidade" in n.lower()), None)
+    if not aba:
+        return
+
+    ws = wb[aba]
+
+    # Detecta colunas pelo cabeçalho
+    col_map: dict[str, int] = {}
+    for c in range(1, ws.max_column + 1):
+        val = ws.cell(1, c).value
+        if val:
+            col_map[str(val).strip().lower()] = c
+
+    if ws.max_row > 1:
+        ws.delete_rows(2, ws.max_row - 1)
+
+    col_un  = col_map.get("unidade") or 1
+    col_desc = col_map.get("descricao") or col_map.get("descrição") or 2
+    col_loja = col_map.get("codigoloja") or 3
+
+    if "Unidade" not in df.columns:
+        return
+
+    unidades = sorted({str(v).strip().upper() for v in df["Unidade"].dropna() if str(v).strip()})
+
+    for i, un in enumerate(unidades, start=2):
+        desc = _UNIDADE_DESC.get(un, un)
+        ws.cell(i, col_un, un)
+        ws.cell(i, col_desc, desc)
+        ws.cell(i, col_loja, "")
+
+
 def write_output(df: pd.DataFrame, output_path: Path, template_path: Path | None = None) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -103,6 +153,9 @@ def write_output(df: pd.DataFrame, output_path: Path, template_path: Path | None
 
         # Aba Grupo E Subgrupo
         _write_grupo_subgrupo(wb, df)
+
+        # Aba Unidades
+        _write_unidades(wb, df)
 
         wb.save(output_path)
         return
