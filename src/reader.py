@@ -21,7 +21,15 @@ def read_client_file(path: str | Path) -> pd.DataFrame:
 
     ext = path.suffix.lower()
     if ext in (".xlsx", ".xlsm"):
+        # Tenta header=0; se as colunas não baterem com nenhum campo esperado,
+        # assume estrutura TOTVS (linha 0 = títulos de seção, linha 1 = cabeçalho real)
         df = pd.read_excel(path, dtype=str, header=0, engine="openpyxl")
+        first_cols = [_normalize_col(c) for c in df.columns]
+        from .config import COLUMN_MAP
+        expected = set(COLUMN_MAP.keys())
+        if not any(c in expected for c in first_cols):
+            df = pd.read_excel(path, dtype=str, header=1, engine="openpyxl",
+                               sheet_name="1. Produtos de Venda")
     elif ext == ".xls":
         # Planilha TOTVS Food 5.0: linha 0 = títulos de seção, linha 1 = cabeçalho real
         df = pd.read_excel(path, dtype=str, header=1, engine="xlrd",
