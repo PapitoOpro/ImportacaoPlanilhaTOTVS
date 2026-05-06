@@ -16,13 +16,6 @@ COLUMN_MAP: dict[str, str] = {
     "PRECO DE COMPRA": "Preço Compra",
     "PRECO DE VENDA": "Preço Venda",
     "LOCAL DE IMPRESSAO (COZINHA, BAR, ETC)": "Local Impressão",
-    # Campos fiscais ignorados — valores fixos definidos em TEMPLATE_DEFAULTS
-    "CST PIS": "CST_PIS",
-    "PIS CALCULO": "PIS_Tipo_Calculo",
-    "ALIQUOTA PIS": "PIS",
-    "CST COFINS": "CST_COFINS",
-    "COFINS CALCULO": "COFINS_Tipo_Calculo",
-    "ALIQUOTA COFINS": "COFINS",
     "CODIGO BENEFICIO FISCAL": "CodigoBeneficioRBC",
     "REDUCAO ICMS (%)": "PER_REDUCAO_BC_ICMS",
 }
