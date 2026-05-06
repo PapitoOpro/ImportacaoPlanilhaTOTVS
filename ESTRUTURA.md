@@ -7,8 +7,9 @@ ImportacaoPlanilhaTOTVS/
 ├── api.py                          # API FastAPI — endpoints HTTP
 ├── requirements.txt                # Dependências Python
 ├── Procfile                        # Configuração de deploy (Render)
+├── PlanilhaImportaçãoLojaComValidação.xlsm  # Template oficial TOTVS Food 5.0
 ├── templates/
-│   └── index.html                  # Interface web (upload + download)
+│   └── index.html                  # Interface web (upload + download + aviso fiscal)
 ├── static/                         # Arquivos estáticos (CSS, JS)
 └── src/
     ├── config.py                   # Mapeamentos, regras e defaults
@@ -30,11 +31,12 @@ Planilha cliente (.xls/.xlsx/.xlsm/.csv)
    reader.py          → lê e normaliza cabeçalhos (sem acento, maiúsculo)
         │
         ▼
-   transformer.py     → renomeia colunas, aplica formatadores, preenche defaults,
+   transformer.py     → renomeia colunas via COLUMN_MAP, descarta não mapeadas,
+                         aplica formatadores, preenche defaults fiscais fixos,
                          gera códigos sequenciais, copia Nome Produto → textos
         │
         ▼
-   validator.py       → valida obrigatórios, formatos (dígitos, moeda, decimal),
+   validator.py       → valida obrigatórios, formatos (dígitos, decimal),
                          detecta duplicatas de código
         │
         ├── linhas válidas ──▶ writer.py → PlanilhaImportaçãoLoja.xlsm
@@ -48,82 +50,67 @@ Planilha cliente (.xls/.xlsx/.xlsm/.csv)
 Central de configuração. Não contém lógica — só dados.
 
 ### `COLUMN_MAP`
+
 Mapeamento `coluna do cliente (normalizada)` → `coluna do template TOTVS`.
+Apenas as colunas listadas aqui são lidas da planilha do cliente. Todas as demais são descartadas.
 
 | Chave (cliente) | Valor (template) |
-|---|---|
+| --- | --- |
 | CODIGO PRODUTO VENDA | Código Produto |
 | NOME PRODUTO | Nome Produto |
+| PRODUTO PESAVEL? | Pesável |
+| VENDA FRACIONADA? | Permitir Venda Fracionada |
+| UNIDADE DE MEDIDA | Unidade |
+| GRUPO | Grupo |
+| SUBGRUPO | SubGrupo |
 | PRECO DE COMPRA | Preço Compra |
 | PRECO DE VENDA | Preço Venda |
-| ALIQUOTA PIS | PIS |
-| ALIQUOTA COFINS | COFINS |
-| NCM | COD_NCM |
-| CEST | Cod_CEST |
-| ... | ... |
+| LOCAL DE IMPRESSAO (COZINHA, BAR, ETC) | Local Impressão |
+| CODIGO BENEFICIO FISCAL | CodigoBeneficioRBC |
+| REDUCAO ICMS (%) | PER_REDUCAO_BC_ICMS |
 
 ### `FIELD_FILL_DEFAULTS`
+
 Valores aplicados quando o campo vier vazio na planilha do cliente.
 
 | Campo | Default |
-|---|---|
+| --- | --- |
 | Unidade | UN |
 | Preço Venda | 0,00 |
 | Preço Compra | 0,00 |
 
 ### `REQUIRED_FIELDS`
-Campos obrigatórios: `Código Produto`, `Nome Produto`, `Unidade`, `Preço Venda`, `COD_NCM`.
+
+Campos obrigatórios: `Código Produto`, `Nome Produto`, `Unidade`, `Preço Venda`.
 
 ### `FIELD_RULES`
+
 Regras de validação por coluna:
 - `digits` — somente dígitos, comprimento fixo (NCM=8, CEST=7, CFOP=4)
-- `currency` — valor monetário formato `R$ 1.234,56`
-- `decimal` — número decimal com vírgula (PIS, COFINS: ex. `0,65`)
+- `currency` — valor monetário (Imposto, PER_REDUCAO_BC_ICMS)
+- `decimal` — número decimal com vírgula (Quantidade Estoque, Quantidade Mínima)
 
 ### `TEMPLATE_DEFAULTS`
-Defaults para colunas do template que não vêm da planilha do cliente (ex. flags de comportamento TOTVS).
+
+Defaults para colunas do template. Campos fiscais fixos (Simples Nacional):
+
+| Campo | Valor |
+| --- | --- |
+| COD_NCM | 21069090 |
+| CFOP_Venda | 5102 |
+| Tributo | I |
+| Imposto | 0 |
+| CSOSN | 1 |
+| CST_CSOSN_Venda | 102 |
+| PIS | *(vazio)* |
+| COFINS | *(vazio)* |
+| CSOSN_Entrada | *(vazio)* |
+| Cod_CEST | *(vazio)* |
 
 ### `TEMPLATE_COLUMNS`
-Lista ordenada com todas as ~90 colunas do template TOTVS Food 5.0. Define a ordem exata de saída.
 
----
-
-## Planilha de Entrada — PLANILHA DE CADASTROS TOTVS FOOD 5.0.xls
-
-Arquivo fornecido ao cliente para preenchimento.
-
-- **Formato:** `.xls` (Excel 97-2003)
-- **Aba:** `1. Produtos de Venda`
-- **Estrutura:** linha 0 = seções mescladas (ignorada), linha 1 = cabeçalhos reais, linha 2+ = dados
-- **88 produtos** no exemplo de referência
-
-| Coluna do cliente | Mapeado para |
-|---|---|
-| CÓDIGO PRODUTO VENDA | Código Produto |
-| CÓDIGO DE BARRAS | Cod GTIN NF-e |
-| NOME PRODUTO | Nome Produto |
-| PRODUTO PESÁVEL? | Pesável |
-| VENDA FRACIONADA? | Permitir Venda Fracionada |
-| UNIDADE DE MEDIDA | Unidade |
-| GRUPO | Grupo |
-| SUBGRUPO | SubGrupo |
-| PREÇO DE COMPRA | Preço Compra |
-| PREÇO DE VENDA | Preço Venda |
-| LOCAL DE IMPRESSÃO (COZINHA, BAR, ETC) | Local Impressão |
-| NCM | COD_NCM |
-| CEST | Cod_CEST |
-| TRIBUTO | Tributo |
-| IMPOSTO (% ICMS) | Imposto |
-| CFOP | CFOP |
-| CST OU CSOSN | CST_CSOSN_Venda |
-| CST PIS | CST_PIS |
-| PIS CALCULO | PIS_Tipo_Calculo |
-| ALÍQUOTA PIS | PIS |
-| CST COFINS | CST_COFINS |
-| COFINS CALCULO | COFINS_Tipo_Calculo |
-| ALÍQUOTA COFINS | COFINS |
-| CÓDIGO BENEFÍCIO FISCAL | CodigoBeneficioRBC |
-| REDUÇÃO ICMS (%) | PER_REDUCAO_BC_ICMS |
+Lista ordenada com as 94 colunas do template TOTVS Food 5.0 (aba `Produtos`).
+Define a ordem exata de saída, espelhando `PlanilhaImportaçãoLojaComValidação.xlsm`.
 
 ---
 
@@ -132,6 +119,7 @@ Arquivo fornecido ao cliente para preenchimento.
 ```python
 read_client_file(path: Path) -> pd.DataFrame
 ```
+
 - Aceita `.xls` (lê aba `1. Produtos de Venda`, header na linha 1 — pula seção mesclada da linha 0)
 - Aceita `.xlsx`, `.xlsm` (header na linha 0)
 - Aceita `.csv` (detecção automática de encoding e separador)
@@ -147,18 +135,19 @@ transform(df, column_map, template_defaults, template_columns, field_fill_defaul
 ```
 
 **Etapas internas:**
+
 1. Renomeia colunas via `COLUMN_MAP`
-2. Limpa texto (strip, colapso de espaços)
-3. Converte automaticamente colunas SIM/NÃO → 1/0
-4. Gera `Código Produto` sequencial para linhas sem código (ordenado por SubGrupo)
-5. Aplica `FIELD_FILL_DEFAULTS` (Preço Venda e Preço Compra → `0,00` se vazios)
-6. Aplica formatadores:
-   - `_to_currency` → `R$ 1.234,56` (Preço Venda, Preço Compra, Imposto...)
-   - `_to_number` → `0,65` (PIS, COFINS — número decimal sem R$)
-   - `_digits_only` + zfill → NCM (8 dígitos), CEST (7), CFOP (4)
+2. **Descarta** todas as colunas que não vieram via `COLUMN_MAP` (evita passthrough de dados do cliente)
+3. Limpa texto (strip, colapso de espaços)
+4. Converte automaticamente colunas SIM/NÃO → 1/0
+5. Gera `Código Produto` sequencial para linhas sem código (ordenado por SubGrupo)
+6. Aplica `FIELD_FILL_DEFAULTS` (Preço Venda e Preço Compra → `0,00` se vazios)
+7. Aplica formatadores:
+   - `_to_number` → `4,00` (Preço Venda, Preço Compra — número decimal sem R$)
    - `_to_bool` → SIM/S/X → 1, NÃO/N → 0
-7. Copia `Nome Produto` → `Texto Fiscal`, `Texto Botão Touch`, `Texto Botao Pocket` (quando vazios)
-8. Garante todas as colunas do template na ordem correta
+8. Copia `Nome Produto` → `Texto Fiscal`, `Texto Botão Touch`, `Texto Botao Pocket` (quando vazios)
+9. Preenche todas as colunas do template com `TEMPLATE_DEFAULTS` (inclui valores fiscais fixos)
+10. Retorna DataFrame na ordem exata de `TEMPLATE_COLUMNS`
 
 ---
 
@@ -173,9 +162,7 @@ validate(df, required_fields, field_rules) -> list[ValidationError]
 **Validações:**
 - Campos obrigatórios vazios
 - Duplicatas de `Código Produto`
-- Formato de dígitos (NCM, CEST, CFOP)
-- Formato de moeda (Preço Venda, Preço Compra, Imposto...)
-- Formato decimal com vírgula (PIS, COFINS)
+- Formato decimal com vírgula (Quantidade Estoque, Quantidade Mínima)
 
 Linhas com erros são **excluídas** do arquivo de saída e listadas em `erros.xlsx`.
 
@@ -184,14 +171,15 @@ Linhas com erros são **excluídas** do arquivo de saída e listadas em `erros.x
 ## src/writer.py
 
 ```python
-write_output(df, output_path)       # Gera PlanilhaImportaçãoLoja.xlsm
-write_error_report(errors, path)    # Gera erros.xlsx
+write_output(df, output_path, template_path, numero_loja)  # Gera PlanilhaImportaçãoLoja.xlsm
+write_error_report(errors, path)                           # Gera erros.xlsx
 ```
 
-**Formatação do Excel de saída:**
-- Cabeçalho azul escuro (`#1F4E79`), texto branco, negrito
-- Colunas auto-dimensionadas (máx. 40 chars)
-- Linha 1 travada (freeze panes)
+**Arquivo de saída:**
+
+- Copia o template `.xlsm` (preserva macros e validações)
+- Escreve os dados na aba `Produtos` a partir da linha 3
+- 94 colunas na ordem exata do template
 
 **Relatório de erros:**
 - Cabeçalho vermelho, linhas amarelas
@@ -202,22 +190,23 @@ write_error_report(errors, path)    # Gera erros.xlsx
 ## api.py — Endpoints HTTP
 
 | Método | Rota | Descrição |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/` | Interface web (index.html) |
-| POST | `/processar` | Recebe planilha, processa, retorna JSON com stats e erros |
-| GET | `/download/{session_id}/resultado` | Download `PlanilhaImportaçãoLoja.xlsm` |
-| GET | `/download/{session_id}/erros` | Download `erros.xlsx` |
+| POST | `/processar` | Recebe planilha, processa, retorna JSON com stats, erros e arquivos em base64 |
 
 **Resposta de `/processar`:**
+
 ```json
 {
-  "session_id": "uuid",
   "stats": { "total": 100, "exportados": 98, "rejeitados": 2 },
-  "erros": [{ "linha": 5, "campo": "COD_NCM", "valor": "123", "motivo": "Deve ter 8 dígitos" }]
+  "erros": [{ "linha": 5, "campo": "Nome Produto", "valor": "", "motivo": "Campo obrigatório vazio" }],
+  "arquivo": "<base64 do xlsm>",
+  "arquivo_erros": "<base64 do erros.xlsx ou null>"
 }
 ```
 
-Sessions ficam em memória (`_sessions` dict) — expiram ao reiniciar o servidor.
+Após conversão bem-sucedida, a interface exibe:
+> **LEMBRE-SE** de ajustar os dados fiscais na manutenção em massa, arquivo gerado com regra do simples nacional com NCM 21069090!
 
 ---
 
@@ -235,29 +224,27 @@ Executa o mesmo pipeline da API em modo terminal. Retorna exit code `0` (sem err
 ## Arquivo de Saída — PlanilhaImportaçãoLoja.xlsm
 
 Formato compatível com importação direta no TOTVS Food 5.0.
-Aba: `Produtos` | ~90 colunas na ordem exata do template oficial.
-
-### Colunas importantes
+Aba: `Produtos` | 94 colunas na ordem exata do template oficial.
 
 | Coluna | Formato | Observação |
-|---|---|---|
+| --- | --- | --- |
 | Código Produto | inteiro (string) | Auto-gerado se vazio |
 | Nome Produto | texto | Fonte para Texto Fiscal/Touch/Pocket |
-| Preço Venda | `R$ 1.234,56` | Default `0,00` |
-| Preço Compra | `R$ 1.234,56` | Default `0,00` |
-| PIS | `0,65` | Número decimal (sem R$) |
-| COFINS | `3,00` | Número decimal (sem R$) |
-| COD_NCM | 8 dígitos | Obrigatório |
+| Preço Venda | `4,00` | Default `0,00` |
+| Preço Compra | `4,00` | Default `0,00` |
+| COD_NCM | `21069090` | Fixo — Simples Nacional |
+| CFOP_Venda | `5102` | Fixo |
+| CSOSN | `1` | Fixo |
+| CST_CSOSN_Venda | `102` | Fixo |
 | Pesável | `0` ou `1` | SIM/NÃO convertido |
 | Texto Fiscal | texto | Cópia de Nome Produto |
-| Texto Botão Touch | texto | Cópia de Nome Produto |
-| Texto Botao Pocket | texto | Cópia de Nome Produto |
+| AlterarCod_CEST | — | Nova coluna — preencher pós-importação |
 
 ---
 
 ## Deploy
 
 - **Plataforma:** Render.com
-- **Runtime:** Python 3.14 / uvicorn
+- **Runtime:** Python 3.11 / uvicorn
 - **Start command:** `uvicorn api:app --host 0.0.0.0 --port $PORT`
 - **Procfile:** `web: uvicorn api:app --host 0.0.0.0 --port $PORT`

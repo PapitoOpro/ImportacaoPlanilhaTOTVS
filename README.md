@@ -8,9 +8,12 @@ Ferramenta web para converter planilhas de cadastro de clientes no formato ofici
 
 1. Acesse a URL do sistema
 2. Faça upload da planilha do cliente (`.xls`, `.xlsx`, `.xlsm` ou `.csv`)
-3. Clique em **Processar**
-4. Baixe o arquivo `PlanilhaImportaçãoLoja.xlsm` gerado
-5. Se houver erros, baixe também o relatório `erros.xlsx`
+3. Informe o número da loja (opcional)
+4. Clique em **Processar**
+5. Baixe o arquivo `PlanilhaImportaçãoLoja.xlsm` gerado
+6. Se houver erros, baixe também o relatório `erros.xlsx`
+
+> Após a conversão, ajuste os dados fiscais via **manutenção em massa** no TOTVS.
 
 ---
 
@@ -18,20 +21,41 @@ Ferramenta web para converter planilhas de cadastro de clientes no formato ofici
 
 - Mapeia as colunas da planilha do cliente para o template TOTVS
 - Preenche `Preço Compra` e `Preço Venda` com `0,00` quando vazios
-- Gera `Código Produto` sequencial para produtos sem código
+- Gera `Código Produto` sequencial para produtos sem código (ordenado por SubGrupo)
 - Copia `Nome Produto` para `Texto Fiscal`, `Texto Botão Touch` e `Texto Botao Pocket`
-- Formata NCM (8 dígitos), CEST (7), CFOP (4)
 - Converte SIM/NÃO → 1/0
-- Formata PIS e COFINS como número decimal (ex: `0,65`)
+- Formata preços como número decimal (ex: `4,00`)
 - Valida campos obrigatórios e detecta duplicatas
 - Exporta apenas linhas válidas; linhas com erro vão para relatório separado
+- Descarta qualquer coluna da planilha do cliente que não esteja no mapeamento
 
 ---
 
-## Colunas esperadas na planilha do cliente
+## Dados fiscais fixos (Simples Nacional)
+
+Os campos fiscais abaixo são **sempre gerados com valores padrão**, ignorando o que vier na planilha do cliente. Ajuste via manutenção em massa após a importação.
+
+| Campo | Valor fixo |
+| --- | --- |
+| COD_NCM | 21069090 |
+| CFOP_Venda | 5102 |
+| Tributo | I |
+| Imposto | 0 |
+| CSOSN | 1 |
+| CST_CSOSN_Venda | 102 |
+| PIS | *(vazio)* |
+| COFINS | *(vazio)* |
+| CST_PIS | *(vazio)* |
+| CST_COFINS | *(vazio)* |
+| CSOSN_Entrada | *(vazio)* |
+| Cod_CEST | *(vazio)* |
+
+---
+
+## Colunas lidas da planilha do cliente
 
 | Coluna do cliente | Campo TOTVS |
-|---|---|
+| --- | --- |
 | CODIGO PRODUTO VENDA | Código Produto |
 | NOME PRODUTO | Nome Produto |
 | PRODUTO PESAVEL? | Pesável |
@@ -41,24 +65,12 @@ Ferramenta web para converter planilhas de cadastro de clientes no formato ofici
 | SUBGRUPO | SubGrupo |
 | PRECO DE COMPRA | Preço Compra |
 | PRECO DE VENDA | Preço Venda |
-| LOCAL DE IMPRESSAO | Local Impressão |
-| NCM | COD_NCM |
-| CEST | Cod_CEST |
-| TRIBUTO | Tributo |
-| IMPOSTO (% ICMS) | Imposto |
-| CFOP | CFOP |
-| CST OU CSOSN | CST_CSOSN_Venda |
-| CST PIS | CST_PIS |
-| PIS CALCULO | PIS_Tipo_Calculo |
-| ALIQUOTA PIS | PIS |
-| CST COFINS | CST_COFINS |
-| COFINS CALCULO | COFINS_Tipo_Calculo |
-| ALIQUOTA COFINS | COFINS |
+| LOCAL DE IMPRESSAO (COZINHA, BAR, ETC) | Local Impressão |
 | CODIGO BENEFICIO FISCAL | CodigoBeneficioRBC |
 | REDUCAO ICMS (%) | PER_REDUCAO_BC_ICMS |
-| CODIGO DE BARRAS | Cod GTIN NF-e |
 
-> Os nomes das colunas são normalizados automaticamente (sem acento, maiúsculo).
+> Os nomes das colunas são normalizados automaticamente (sem acento, maiúsculo).  
+> Colunas não listadas acima são ignoradas mesmo que existam na planilha.
 
 ---
 
