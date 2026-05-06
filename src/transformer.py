@@ -12,6 +12,15 @@ def _clean(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value).strip())
 
 
+_SQL_UNSAFE = re.compile(r"""['";\\\|<>&%@#\^*`!?~+=\$\{\}\[\]°ªº]""")
+
+def _sanitize_product_name(value: str) -> str:
+    """Remove caracteres que causam falha na importação SQL do TOTVS Food.
+    Mantém letras (incluindo acentuadas), números, espaços e pontuação básica (-.,:()/)."""
+    value = _SQL_UNSAFE.sub("", value)
+    return re.sub(r"\s{2,}", " ", value).strip()
+
+
 def _digits_only(value: str) -> str:
     """Remove tudo que não é dígito. Validação de comprimento fica no validator."""
     return re.sub(r"\D", "", value)
@@ -120,6 +129,12 @@ def transform(
             df[col] = df[col].apply(lambda v: _to_bool(_clean(v)) if _clean(v) else "")
         else:
             df[col] = df[col].apply(_clean)
+
+    # Sanitiza Nome Produto (remove chars inválidos para SQL)
+    if "Nome Produto" in df.columns:
+        df["Nome Produto"] = df["Nome Produto"].apply(
+            lambda v: _sanitize_product_name(_clean(v))
+        )
 
     # Código sequencial para linhas sem código
     df = _assign_sequential_codes(df)
