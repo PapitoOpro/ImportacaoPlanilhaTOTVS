@@ -14,6 +14,31 @@ def _clean(value: Any) -> str:
 
 _SQL_UNSAFE = re.compile(r"""['";\\\|<>&%@#\^*`!?~+=\$\{\}\[\]°ªº]""")
 
+_UNIT_MAP: dict[str, str] = {
+    # unitário
+    "UN": "UN", "UNITARIO": "UN", "UNIDADE": "UN", "UNID": "UN", "UND": "UN",
+    "UNIT": "UN", "PC": "UN", "PECA": "UN", "PÇ": "UN",
+    # peso
+    "KG": "KG", "QUILO": "KG", "QUILOGRAMA": "KG", "KILO": "KG",
+    "GR": "GR", "G": "GR", "GRAMA": "GR", "GRAMAS": "GR",
+    # volume
+    "LT": "LT", "L": "LT", "LITRO": "LT", "LITROS": "LT", "LTS": "LT",
+    "ML": "ML", "MILILITRO": "ML", "MILILITROS": "ML",
+    # embalagem
+    "CX": "CX", "CAIXA": "CX", "PCT": "PCT", "PACOTE": "PCT",
+    "FD": "FD", "FARDO": "FD", "SC": "SC", "SACO": "SC",
+    # outros
+    "MT": "MT", "METRO": "MT", "M": "MT",
+    "DZ": "DZ", "DUZIA": "DZ", "DÚZIA": "DZ",
+    "PR": "PR", "PAR": "PR",
+}
+
+
+def _normalize_unit(value: str) -> str:
+    key = unicodedata.normalize("NFD", value.upper().strip())
+    key = "".join(c for c in key if unicodedata.category(c) != "Mn")
+    return _UNIT_MAP.get(key, value.strip())
+
 def _sanitize_product_name(value: str) -> str:
     """Remove caracteres que causam falha na importação SQL do TOTVS Food.
     Mantém letras (incluindo acentuadas), números, espaços e pontuação básica (-.,:()/)."""
@@ -146,6 +171,12 @@ def transform(
             df[col] = df[col].apply(lambda v: _to_bool(_clean(v)) if _clean(v) else "")
         else:
             df[col] = df[col].apply(_clean)
+
+    # Normaliza Unidade → sigla TOTVS (ex: "unitario" → "UN")
+    if "Unidade" in df.columns:
+        df["Unidade"] = df["Unidade"].apply(
+            lambda v: _normalize_unit(_clean(v)) if _clean(v) else ""
+        )
 
     # Sanitiza Nome Produto (remove chars inválidos para SQL)
     if "Nome Produto" in df.columns:
