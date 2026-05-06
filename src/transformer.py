@@ -35,8 +35,9 @@ def _normalize_unit(value: str) -> str:
     return _UNIT_MAP.get(key, value.strip())
 
 def _sanitize_product_name(value: str) -> str:
-    """Remove caracteres que causam falha na importação SQL do TOTVS Food.
-    Mantém letras (incluindo acentuadas), números, espaços e pontuação básica (-.,:()/)."""
+    """Remove acentos e caracteres inválidos para importação SQL do TOTVS Food."""
+    value = unicodedata.normalize("NFD", value)
+    value = "".join(c for c in value if unicodedata.category(c) != "Mn")
     value = _SQL_UNSAFE.sub("", value)
     return re.sub(r"\s{2,}", " ", value).strip()
 
