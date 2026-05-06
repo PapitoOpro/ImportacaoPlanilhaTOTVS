@@ -126,6 +126,10 @@ def transform(
     rename = {col: norm_map[col] for col in df.columns if col in norm_map}
     df = df.rename(columns=rename)
 
+    # Descarta colunas que não vieram via COLUMN_MAP (evita passthrough de dados do cliente)
+    mapped_cols = set(rename.values())
+    df = df[[c for c in df.columns if c in mapped_cols]]
+
     # Limpa texto e converte colunas SIM/NÃO → 1/0 automaticamente
     text_cols = [c for c in df.columns if c not in _FORMATTERS]
     for col in text_cols:
