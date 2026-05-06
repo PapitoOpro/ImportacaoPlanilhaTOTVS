@@ -140,4 +140,5 @@ TEMPLATE_COLUMNS: list[str] = [
     "IndicadorNaturezaOperacaoISSQN", "Cod_CEST", "TouchExibirComplemento",
     "NaoMultiplicarQuantidadeAdicional", "Cod GTIN NF-e",
     "CodigoCreditoPresumido", "PercentualCreditoPresumido", "CodigoBeneficioRBC",
+    "AlterarCod_CEST",
 ]
