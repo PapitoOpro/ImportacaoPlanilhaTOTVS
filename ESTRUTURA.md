@@ -143,14 +143,30 @@ transform(df, column_map, template_defaults, template_columns, field_fill_defaul
 2. **Descarta** todas as colunas que não vieram via `COLUMN_MAP` (evita passthrough de dados do cliente)
 3. Limpa texto (strip, colapso de espaços)
 4. Converte automaticamente colunas SIM/NÃO → 1/0
-5. Gera `Código Produto` sequencial para linhas sem código (ordenado por SubGrupo)
-6. Aplica `FIELD_FILL_DEFAULTS` (Preço Venda e Preço Compra → `0,00` se vazios)
-7. Aplica formatadores:
+5. Normaliza `Unidade` → sigla TOTVS (ex: `unitario` → `UN`, `quilo` → `KG`, `litro` → `LT`)
+6. Sanitiza `Nome Produto`: remove acentos e caracteres inválidos para SQL (`'`, `"`, `;`, `&`, `%`, etc.) — mantém letras, números, espaços e pontuação básica
+7. Gera `Código Produto` sequencial para linhas sem código (ordenado por SubGrupo, pula códigos existentes)
+8. Aplica `FIELD_FILL_DEFAULTS` (Preço Venda e Preço Compra → `0,00` se vazios)
+9. Aplica formatadores:
    - `_to_number` → `4,00` (Preço Venda, Preço Compra — número decimal sem R$)
    - `_to_bool` → SIM/S/X → 1, NÃO/N → 0
-8. Copia `Nome Produto` → `Texto Fiscal`, `Texto Botão Touch`, `Texto Botao Pocket` (quando vazios)
-9. Preenche todas as colunas do template com `TEMPLATE_DEFAULTS` (inclui valores fiscais fixos)
-10. Retorna DataFrame na ordem exata de `TEMPLATE_COLUMNS`
+10. Copia `Nome Produto` → `Texto Fiscal`, `Texto Botão Touch`, `Texto Botao Pocket` (quando vazios)
+11. Preenche todas as colunas do template com `TEMPLATE_DEFAULTS` (inclui valores fiscais fixos)
+12. Retorna DataFrame na ordem exata de `TEMPLATE_COLUMNS`
+
+**Mapeamento `_UNIT_MAP` (principais):**
+
+| Cliente | TOTVS |
+| --- | --- |
+| unitario, unidade, und | `UN` |
+| kg, quilo, quilograma | `KG` |
+| grama, gr, g | `GR` |
+| litro, lt, l | `LT` |
+| ml, mililitro | `ML` |
+| caixa, cx | `CX` |
+| pacote, pct | `PCT` |
+
+Valores já em sigla passam sem alteração. Valores desconhecidos são mantidos como vieram.
 
 ---
 
