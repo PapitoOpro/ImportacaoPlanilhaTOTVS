@@ -25,8 +25,11 @@ def read_client_file(path: str | Path) -> pd.DataFrame:
         # assume estrutura TOTVS (linha 0 = títulos de seção, linha 1 = cabeçalho real)
         df = pd.read_excel(path, dtype=str, header=0, engine="openpyxl")
         first_cols = [_normalize_col(c) for c in df.columns]
-        from .config import COLUMN_MAP
-        expected = set(COLUMN_MAP.keys())
+        try:
+            from config import COLUMN_MAP as _cm
+        except ImportError:
+            from .config import COLUMN_MAP as _cm
+        expected = set(_cm.keys())
         if not any(c in expected for c in first_cols):
             df = pd.read_excel(path, dtype=str, header=1, engine="openpyxl",
                                sheet_name="1. Produtos de Venda")
