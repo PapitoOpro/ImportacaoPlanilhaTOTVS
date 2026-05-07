@@ -34,15 +34,20 @@ _UNIT_MAP: dict[str, str] = {
 }
 
 
+def _strip_accents(value: str) -> str:
+    """Substitui caracteres acentuados/cedilha pelo equivalente sem acento (ç→c, ó→o, ã→a)."""
+    value = unicodedata.normalize("NFD", value)
+    return "".join(c for c in value if unicodedata.category(c) != "Mn")
+
+
 def _normalize_unit(value: str) -> str:
-    key = unicodedata.normalize("NFD", value.upper().strip())
-    key = "".join(c for c in key if unicodedata.category(c) != "Mn")
-    return _UNIT_MAP.get(key, value.strip())
+    key = _strip_accents(value.upper().strip())
+    return _UNIT_MAP.get(key, key)
+
 
 def _sanitize_product_name(value: str) -> str:
     """Remove acentos e caracteres inválidos para importação SQL do TOTVS Food."""
-    value = unicodedata.normalize("NFD", value)
-    value = "".join(c for c in value if unicodedata.category(c) != "Mn")
+    value = _strip_accents(value)
     value = _SQL_UNSAFE.sub("", value)
     return re.sub(r"\s{2,}", " ", value).strip()
 
@@ -165,13 +170,13 @@ def transform(
     mapped_cols = set(rename.values())
     df = df[[c for c in df.columns if c in mapped_cols]]
 
-    # Limpa texto e converte colunas SIM/NÃO → 1/0 automaticamente
+    # Limpa texto, remove acentos e converte colunas SIM/NÃO → 1/0 automaticamente
     text_cols = [c for c in df.columns if c not in _FORMATTERS]
     for col in text_cols:
         if _is_bool_col(df[col]):
             df[col] = df[col].apply(lambda v: _to_bool(_clean(v)) if _clean(v) else "")
         else:
-            df[col] = df[col].apply(_clean)
+            df[col] = df[col].apply(lambda v: _strip_accents(_clean(v)) if _clean(v) else "")
 
     # Normaliza Unidade → sigla TOTVS (ex: "unitario" → "UN")
     if "Unidade" in df.columns:
