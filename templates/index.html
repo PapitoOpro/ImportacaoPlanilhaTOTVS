@@ -3,121 +3,172 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Importação de Planilha</title>
+  <title>Importação TOTVS Food</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .drop-active { border-color: #2563eb; background: #eff6ff; }
     .fade-in { animation: fadeIn .3s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .nav-link.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
   </style>
 </head>
-<body class="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
+<body class="min-h-screen bg-gray-50 text-gray-800">
 
-  <!-- Header -->
-  <div class="w-full max-w-2xl mb-8 text-center">
-    <h1 class="text-2xl font-bold text-gray-800">Importação de Produtos</h1>
-    <p class="text-gray-500 mt-1 text-sm">Automação de Importação de cadastro Produtos</p>
+  <!-- Topbar mobile -->
+  <header class="md:hidden flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
+    <span class="font-bold">Importação TOTVS Food</span>
+    <button onclick="toggleMenu()" class="text-gray-600 text-xl" aria-label="Menu">☰</button>
+  </header>
+
+  <div class="flex">
+    <!-- Menu lateral -->
+    <aside id="sidebar"
+           class="hidden md:flex fixed md:sticky top-0 z-20 h-screen w-64 shrink-0 flex-col bg-white border-r border-gray-200">
+      <div class="px-6 py-6 border-b border-gray-100">
+        <p class="font-bold text-lg">Importação</p>
+        <p class="text-xs text-gray-400">TOTVS Food</p>
+      </div>
+      <nav class="flex-1 p-3 flex flex-col gap-1 text-sm">
+        <a href="#home" data-view="home" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
+          <span>🏠</span> Início
+        </a>
+        <p class="px-3 pt-4 pb-1 text-xs text-gray-400 uppercase tracking-wide">Planilhas</p>
+        <a href="#produtos" data-view="produtos" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
+          <span>📦</span> Cadastro de Produtos
+        </a>
+        <a href="#regras-ncm" data-view="regras-ncm" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
+          <span>🧾</span> Regra NCM / Dados Fiscais
+        </a>
+      </nav>
+    </aside>
+
+    <main class="flex-1 min-w-0 px-4 py-10 md:px-10">
+
+      <!-- ============ HOME ============ -->
+      <section id="view-home" class="view max-w-3xl mx-auto">
+        <h1 class="text-2xl font-bold">Importação de Planilhas</h1>
+        <p class="text-gray-500 mt-1 text-sm">Escolha qual planilha deseja converter a partir do cadastro enviado pelo cliente.</p>
+
+        <div class="grid sm:grid-cols-2 gap-4 mt-8">
+          <a href="#produtos" class="block bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:border-blue-400 hover:shadow transition">
+            <p class="text-2xl">📦</p>
+            <p class="font-semibold mt-2">Cadastro de Produtos</p>
+            <p class="text-sm text-gray-500 mt-1">Gera a PlanilhaImportaçãoLoja.xlsm com produtos, grupos e unidades.</p>
+          </a>
+          <a href="#regras-ncm" class="block bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:border-blue-400 hover:shadow transition">
+            <p class="text-2xl">🧾</p>
+            <p class="font-semibold mt-2">Regra NCM / Dados Fiscais</p>
+            <p class="text-sm text-gray-500 mt-1">Gera a ImportacaoRegraNCMDadosFiscais.xlsx (Simples Nacional ou Regime Normal).</p>
+          </a>
+        </div>
+      </section>
+
+      <!-- ============ PRODUTOS ============ -->
+      <section id="view-produtos" class="view hidden max-w-2xl mx-auto" data-tool="produtos">
+        <h1 class="text-2xl font-bold">Cadastro de Produtos</h1>
+        <p class="text-gray-500 mt-1 text-sm">Automação de importação de cadastro de produtos.</p>
+
+        <div class="tool-card mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <div data-slot="dropzone"></div>
+          <div data-slot="options" class="hidden mt-4 flex flex-col gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Número da Loja</label>
+              <input name="numero_loja" type="text" placeholder="Ex: 1"
+                     class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+          </div>
+          <div data-slot="actions"></div>
+        </div>
+
+        <div data-slot="results"></div>
+        <div data-slot="aviso" class="hidden mt-4 flex items-start gap-3 bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-yellow-800 text-sm font-medium">
+          ⚠️ LEMBRE-SE de ajustar os dados fiscais na manutenção em massa, arquivo gerado com regra do simples nacional com NCM 21069090!
+        </div>
+      </section>
+
+      <!-- ============ REGRAS NCM ============ -->
+      <section id="view-regras-ncm" class="view hidden max-w-2xl mx-auto" data-tool="regras-ncm">
+        <h1 class="text-2xl font-bold">Regra NCM / Dados Fiscais</h1>
+        <p class="text-gray-500 mt-1 text-sm">Use a mesma planilha de cadastro de produtos do cliente. Gera uma regra por combinação única de NCM, CEST e dados fiscais.</p>
+
+        <div class="tool-card mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <div data-slot="dropzone"></div>
+          <div data-slot="options" class="hidden mt-4 flex flex-col gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Regime Tributário</label>
+              <select name="regime"
+                      class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="1">1 - Simples Nacional</option>
+                <option value="2">2 - Simples Nacional - Excesso</option>
+                <option value="3">3 - Regime Normal</option>
+              </select>
+              <p class="text-xs text-gray-400 mt-1">Simples: CST/CSOSN vai na coluna CSOSN, sem PIS/COFINS. Normal: coluna CST + abas PIS/COFINS.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">UF</label>
+                <input name="uf" type="text" value="SP" maxlength="2"
+                       class="w-full uppercase border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Número da Loja</label>
+                <input name="numero_loja" type="text" placeholder="Ex: 1"
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+          </div>
+          <div data-slot="actions"></div>
+        </div>
+
+        <div data-slot="results"></div>
+      </section>
+    </main>
   </div>
 
-  <!-- Upload Card -->
-  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-
-    <!-- Drop Zone -->
-    <div id="dropzone"
-         class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer transition-all"
-         onclick="document.getElementById('fileInput').click()"
-         ondragover="onDragOver(event)"
-         ondragleave="onDragLeave(event)"
-         ondrop="onDrop(event)">
-      <div id="dropContent">
-        <svg class="mx-auto mb-3 text-gray-400 w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-        </svg>
-        <p class="text-gray-600 font-medium">Arraste a planilha aqui</p>
-        <p class="text-gray-400 text-sm mt-1">ou clique para selecionar</p>
-        <p class="text-gray-300 text-xs mt-3">.xls · .xlsx · .csv</p>
-      </div>
-    </div>
-    <input id="fileInput" type="file" accept=".xls,.xlsx,.xlsm,.csv" class="hidden" onchange="onFileSelected(event)" />
-
-    <!-- File selected indicator -->
-    <div id="fileInfo" class="hidden mt-4 flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-      <svg class="text-blue-500 w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-      </svg>
-      <span id="fileName" class="text-sm text-blue-700 font-medium truncate flex-1"></span>
-      <button onclick="resetForm()" class="text-gray-400 hover:text-gray-600 shrink-0">✕</button>
-    </div>
-
-    <!-- Número da Loja -->
-    <div id="lojaField" class="hidden mt-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Número da Loja</label>
-      <input id="numeroLoja" type="text" placeholder="Ex: 1"
-             class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-    </div>
-
-    <!-- Process Button -->
-    <button id="btnProcessar"
-            onclick="processar()"
-            class="hidden mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors">
-      Processar planilha
-    </button>
-
-    <!-- Loading -->
-    <div id="loading" class="hidden mt-5 flex items-center justify-center gap-3 text-gray-500">
-      <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-      </svg>
-      <span class="text-sm">Processando...</span>
-    </div>
+<!-- Componentes reutilizáveis -->
+<template id="tpl-dropzone">
+  <div class="dropzone border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer transition-all">
+    <svg class="mx-auto mb-3 text-gray-400 w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+    </svg>
+    <p class="text-gray-600 font-medium">Arraste a planilha do cliente aqui</p>
+    <p class="text-gray-400 text-sm mt-1">ou clique para selecionar</p>
+    <p class="text-gray-300 text-xs mt-3">.xls · .xlsx · .csv</p>
   </div>
+  <input type="file" accept=".xls,.xlsx,.xlsm,.csv" class="file-input hidden" />
+  <div class="file-info hidden mt-4 flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+    <span class="text-blue-500">📄</span>
+    <span class="file-name text-sm text-blue-700 font-medium truncate flex-1"></span>
+    <button type="button" class="btn-reset text-gray-400 hover:text-gray-600 shrink-0">✕</button>
+  </div>
+</template>
 
-  <!-- Results -->
-  <div id="results" class="hidden w-full max-w-2xl mt-6 fade-in">
+<template id="tpl-actions">
+  <button type="button" class="btn-processar hidden mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors">
+    Processar planilha
+  </button>
+  <div class="loading hidden mt-5 flex items-center justify-center gap-3 text-gray-500">
+    <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+    </svg>
+    <span class="text-sm">Processando...</span>
+  </div>
+</template>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-3 gap-4 mb-4">
-      <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
-        <p class="text-3xl font-bold text-gray-800" id="statTotal">0</p>
-        <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Total</p>
-      </div>
-      <div class="bg-white rounded-xl border border-green-200 p-5 text-center shadow-sm">
-        <p class="text-3xl font-bold text-green-600" id="statExportados">0</p>
-        <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Exportados</p>
-      </div>
-      <div class="bg-white rounded-xl border border-red-200 p-5 text-center shadow-sm">
-        <p class="text-3xl font-bold text-red-500" id="statRejeitados">0</p>
-        <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">Rejeitados</p>
-      </div>
-    </div>
-
-    <!-- Download Buttons -->
+<template id="tpl-results">
+  <div class="results hidden mt-6 fade-in">
+    <div class="stats grid gap-4 mb-4"></div>
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
       <h2 class="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Downloads</h2>
       <div class="flex flex-col gap-3">
-        <button id="btnResultado" onclick="baixarB64(arquivoB64, 'PlanilhaImportaçãoLoja.xlsm', 'application/vnd.ms-excel.sheet.macroEnabled.12')"
-           class="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          Baixar PlanilhaImportaçãoLoja.xlsm
-        </button>
-        <button id="btnErros" onclick="baixarB64(arquivoErrosB64, 'erros.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')"
-           class="hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors cursor-pointer">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-          </svg>
-          Baixar relatório de erros (erros.xlsx)
+        <button type="button" class="btn-resultado flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors"></button>
+        <button type="button" class="btn-erros hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors">
+          ⚠️ Baixar relatório de erros (erros.xlsx)
         </button>
       </div>
-
-      <!-- Error Table -->
-      <div id="errosContainer" class="hidden mt-6">
+      <div class="erros-container hidden mt-6">
         <h2 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Linhas rejeitadas</h2>
         <div class="overflow-x-auto rounded-xl border border-gray-100">
           <table class="w-full text-sm">
@@ -129,77 +180,46 @@
                 <th class="py-2 px-3 text-left">Motivo</th>
               </tr>
             </thead>
-            <tbody id="errosBody" class="divide-y divide-gray-100 text-gray-700"></tbody>
+            <tbody class="erros-body divide-y divide-gray-100 text-gray-700"></tbody>
           </table>
         </div>
       </div>
     </div>
-
-    <!-- Aviso fiscal -->
-    <div id="avisoFiscal" class="hidden mt-4 flex items-start gap-3 bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-yellow-800 text-sm font-medium">
-      <svg class="w-5 h-5 mt-0.5 shrink-0 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-      </svg>
-      LEMBRE-SE de ajustar os dados fiscais na manutenção em massa, arquivo gerado com regra do simples nacional com NCM 21069090!
-    </div>
-
-    <!-- New File Button -->
-    <button onclick="resetForm()" class="mt-4 w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors">
+    <button type="button" class="btn-novo mt-4 w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors">
       ← Processar outro arquivo
     </button>
   </div>
+</template>
 
 <script>
-  let selectedFile = null;
-  let arquivoB64 = null;
-  let arquivoErrosB64 = null;
+  const MIME_XLSM = 'application/vnd.ms-excel.sheet.macroEnabled.12';
+  const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-  function onDragOver(e) {
-    e.preventDefault();
-    document.getElementById('dropzone').classList.add('drop-active');
-  }
-  function onDragLeave(e) {
-    document.getElementById('dropzone').classList.remove('drop-active');
-  }
-  function onDrop(e) {
-    e.preventDefault();
-    document.getElementById('dropzone').classList.remove('drop-active');
-    const file = e.dataTransfer.files[0];
-    if (file) setFile(file);
-  }
-  function onFileSelected(e) {
-    const file = e.target.files[0];
-    if (file) setFile(file);
-  }
-  function setFile(file) {
-    selectedFile = file;
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileInfo').classList.remove('hidden');
-    document.getElementById('lojaField').classList.remove('hidden');
-    document.getElementById('btnProcessar').classList.remove('hidden');
-    document.getElementById('results').classList.add('hidden');
-  }
-  function resetForm() {
-    selectedFile = null;
-    arquivoB64 = null;
-    arquivoErrosB64 = null;
-    document.getElementById('fileInput').value = '';
-    document.getElementById('numeroLoja').value = '';
-    document.getElementById('fileInfo').classList.add('hidden');
-    document.getElementById('lojaField').classList.add('hidden');
-    document.getElementById('btnProcessar').classList.add('hidden');
-    document.getElementById('results').classList.add('hidden');
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('avisoFiscal').classList.add('hidden');
-  }
+  const TOOLS = {
+    'produtos': {
+      endpoint: '/processar',
+      arquivo: 'PlanilhaImportaçãoLoja.xlsm',
+      mime: MIME_XLSM,
+      stats: [['total', 'Total', 'text-gray-800'], ['exportados', 'Exportados', 'text-green-600'], ['rejeitados', 'Rejeitados', 'text-red-500']],
+      aviso: true,
+    },
+    'regras-ncm': {
+      endpoint: '/processar-regras-ncm',
+      arquivo: 'ImportacaoRegraNCMDadosFiscais.xlsx',
+      mime: MIME_XLSX,
+      stats: [['total', 'Produtos', 'text-gray-800'], ['regras', 'Regras geradas', 'text-blue-600'], ['exportados', 'Válidos', 'text-green-600'], ['rejeitados', 'Rejeitados', 'text-red-500']],
+      aviso: false,
+    },
+  };
+
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function baixarB64(b64, filename, mime) {
     const bytes = atob(b64);
     const arr = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    const blob = new Blob([arr], { type: mime });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = URL.createObjectURL(new Blob([arr], { type: mime }));
     a.download = filename;
     document.body.appendChild(a);
     a.click();
@@ -207,62 +227,120 @@
     URL.revokeObjectURL(a.href);
   }
 
-  async function processar() {
-    if (!selectedFile) return;
+  function initTool(section) {
+    const cfg = TOOLS[section.dataset.tool];
+    const slot = name => section.querySelector(`[data-slot="${name}"]`);
+    slot('dropzone').appendChild(document.getElementById('tpl-dropzone').content.cloneNode(true));
+    slot('actions').appendChild(document.getElementById('tpl-actions').content.cloneNode(true));
+    slot('results').appendChild(document.getElementById('tpl-results').content.cloneNode(true));
 
-    document.getElementById('btnProcessar').classList.add('hidden');
-    document.getElementById('loading').classList.remove('hidden');
-    document.getElementById('results').classList.add('hidden');
+    const $ = sel => section.querySelector(sel);
+    const show = (sel, on) => $(sel).classList.toggle('hidden', !on);
+    const options = slot('options');
+    const aviso = slot('aviso');
+    const defaults = [...options.querySelectorAll('[name]')].map(el => [el, el.value]);
+    let file = null, arquivoB64 = null, errosB64 = null;
 
-    const form = new FormData();
-    form.append('file', selectedFile);
-    form.append('numero_loja', document.getElementById('numeroLoja').value.trim());
-
-    try {
-      const res = await fetch('/processar', { method: 'POST', body: form });
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert('Erro: ' + (data.detail || 'Falha no processamento'));
-        document.getElementById('btnProcessar').classList.remove('hidden');
-        return;
-      }
-
-      arquivoB64 = data.arquivo;
-      arquivoErrosB64 = data.arquivo_erros || null;
-
-      document.getElementById('statTotal').textContent = data.stats.total;
-      document.getElementById('statExportados').textContent = data.stats.exportados;
-      document.getElementById('statRejeitados').textContent = data.stats.rejeitados;
-
-      const btnErros = document.getElementById('btnErros');
-      const errosContainer = document.getElementById('errosContainer');
-
-      if (data.erros && data.erros.length > 0) {
-        btnErros.classList.remove('hidden');
-        const tbody = document.getElementById('errosBody');
-        tbody.innerHTML = data.erros.map(e => `
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 px-3">${e.linha}</td>
-            <td class="py-2 px-3 font-medium">${e.campo}</td>
-            <td class="py-2 px-3 text-gray-400">${e.valor || '—'}</td>
-            <td class="py-2 px-3 text-red-500">${e.motivo}</td>
-          </tr>`).join('');
-        errosContainer.classList.remove('hidden');
-      } else {
-        btnErros.classList.add('hidden');
-        errosContainer.classList.add('hidden');
-      }
-
-      document.getElementById('results').classList.remove('hidden');
-      document.getElementById('avisoFiscal').classList.remove('hidden');
-    } catch (err) {
-      alert('Erro de conexão. Tente novamente.');
-      document.getElementById('btnProcessar').classList.remove('hidden');
-    } finally {
-      document.getElementById('loading').classList.add('hidden');
+    function setFile(f) {
+      file = f;
+      $('.file-name').textContent = f.name;
+      show('.file-info', true);
+      options.classList.remove('hidden');
+      show('.btn-processar', true);
+      show('.results', false);
+      aviso?.classList.add('hidden');
     }
+
+    function reset() {
+      file = arquivoB64 = errosB64 = null;
+      $('.file-input').value = '';
+      defaults.forEach(([el, v]) => el.value = v);
+      ['.file-info', '.btn-processar', '.results', '.loading'].forEach(s => show(s, false));
+      options.classList.add('hidden');
+      aviso?.classList.add('hidden');
+    }
+
+    const dz = $('.dropzone');
+    dz.onclick = () => $('.file-input').click();
+    dz.ondragover = e => { e.preventDefault(); dz.classList.add('drop-active'); };
+    dz.ondragleave = () => dz.classList.remove('drop-active');
+    dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drop-active'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); };
+    $('.file-input').onchange = e => { if (e.target.files[0]) setFile(e.target.files[0]); };
+    $('.btn-reset').onclick = reset;
+    $('.btn-novo').onclick = reset;
+    $('.btn-resultado').innerHTML = `⬇️ Baixar ${esc(cfg.arquivo)}`;
+    $('.btn-resultado').onclick = () => baixarB64(arquivoB64, cfg.arquivo, cfg.mime);
+    $('.btn-erros').onclick = () => baixarB64(errosB64, 'erros.xlsx', MIME_XLSX);
+    $('.stats').classList.add(`grid-cols-2`, `sm:grid-cols-${cfg.stats.length}`);
+
+    $('.btn-processar').onclick = async () => {
+      if (!file) return;
+      show('.btn-processar', false);
+      show('.loading', true);
+      show('.results', false);
+
+      const form = new FormData();
+      form.append('file', file);
+      options.querySelectorAll('[name]').forEach(el => form.append(el.name, el.value.trim()));
+
+      try {
+        const res = await fetch(cfg.endpoint, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('Erro: ' + (data.detail || 'Falha no processamento'));
+          show('.btn-processar', true);
+          return;
+        }
+
+        arquivoB64 = data.arquivo;
+        errosB64 = data.arquivo_erros || null;
+
+        $('.stats').innerHTML = cfg.stats.map(([key, label, color]) => `
+          <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+            <p class="text-3xl font-bold ${color}">${esc(data.stats[key])}</p>
+            <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">${label}</p>
+          </div>`).join('');
+
+        const temErros = data.erros && data.erros.length > 0;
+        show('.btn-erros', temErros);
+        show('.erros-container', temErros);
+        $('.erros-body').innerHTML = temErros ? data.erros.map(e => `
+          <tr class="hover:bg-gray-50">
+            <td class="py-2 px-3">${esc(e.linha)}</td>
+            <td class="py-2 px-3 font-medium">${esc(e.campo)}</td>
+            <td class="py-2 px-3 text-gray-400">${esc(e.valor) || '—'}</td>
+            <td class="py-2 px-3 text-red-500">${esc(e.motivo)}</td>
+          </tr>`).join('') : '';
+
+        show('.results', true);
+        if (cfg.aviso) aviso?.classList.remove('hidden');
+      } catch (err) {
+        alert('Erro de conexão. Tente novamente.');
+        show('.btn-processar', true);
+      } finally {
+        show('.loading', false);
+      }
+    };
   }
+
+  function toggleMenu(force) {
+    const sb = document.getElementById('sidebar');
+    const open = force ?? sb.classList.contains('hidden');
+    sb.classList.toggle('hidden', !open);
+    sb.classList.toggle('flex', open);
+  }
+
+  function route() {
+    const view = (location.hash || '#home').slice(1);
+    const target = document.getElementById(`view-${view}`) ? view : 'home';
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== `view-${target}`));
+    document.querySelectorAll('.nav-link').forEach(a => a.classList.toggle('active', a.dataset.view === target));
+    if (window.innerWidth < 768) toggleMenu(false);
+  }
+
+  document.querySelectorAll('[data-tool]').forEach(initTool);
+  window.addEventListener('hashchange', route);
+  route();
 </script>
 </body>
 </html>
