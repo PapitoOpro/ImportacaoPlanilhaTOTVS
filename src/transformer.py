@@ -5,6 +5,8 @@ from typing import Any
 
 import pandas as pd
 
+from units import UNIT_ALIASES
+
 
 def _clean(value: Any) -> str:
     if pd.isna(value) or value is None:
@@ -14,24 +16,6 @@ def _clean(value: Any) -> str:
 
 _SQL_UNSAFE = re.compile(r"""['";\\\|<>&%@#\^*`!?~+=\$\{\}\[\]°ªº]""")
 
-_UNIT_MAP: dict[str, str] = {
-    # unitário
-    "UN": "UN", "UNITARIO": "UN", "UNIDADE": "UN", "UNID": "UN", "UND": "UN",
-    "UNIT": "UN", "PC": "UN", "PECA": "UN", "PÇ": "UN",
-    # peso
-    "KG": "KG", "QUILO": "KG", "QUILOGRAMA": "KG", "KILO": "KG",
-    "GR": "GR", "G": "GR", "GRAMA": "GR", "GRAMAS": "GR",
-    # volume
-    "LT": "LT", "L": "LT", "LITRO": "LT", "LITROS": "LT", "LTS": "LT",
-    "ML": "ML", "MILILITRO": "ML", "MILILITROS": "ML",
-    # embalagem
-    "CX": "CX", "CAIXA": "CX", "PCT": "PCT", "PACOTE": "PCT",
-    "FD": "FD", "FARDO": "FD", "SC": "SC", "SACO": "SC",
-    # outros
-    "MT": "MT", "METRO": "MT", "M": "MT",
-    "DZ": "DZ", "DUZIA": "DZ", "DÚZIA": "DZ",
-    "PR": "PR", "PAR": "PR",
-}
 
 
 def _strip_accents(value: str) -> str:
@@ -41,8 +25,8 @@ def _strip_accents(value: str) -> str:
 
 
 def _normalize_unit(value: str) -> str:
-    key = _strip_accents(value.upper().strip())
-    return _UNIT_MAP.get(key, key)
+    key = re.sub(r"[^A-Z]", "", _strip_accents(value.upper()))
+    return UNIT_ALIASES.get(key, key)
 
 
 def _sanitize_product_name(value: str) -> str:
@@ -99,7 +83,6 @@ _FORMATTERS: dict[str, Any] = {
     "PIS":                    {"fn": _to_number},
     "COFINS":                 {"fn": _to_number},
     "Imposto":                {"fn": _to_currency},
-    "PER_REDUCAO_BC_ICMS":    {"fn": _to_currency},
     "Pesável":                {"fn": _to_bool},
     "Permitir Venda Fracionada": {"fn": _to_bool},
 }
@@ -216,6 +199,9 @@ def transform(
                     lambda row: row["Nome Produto"] if str(row[txt_col]).strip() == "" else row[txt_col],
                     axis=1,
                 )
+
+    # PER_REDUCAO_BC_ICMS sempre em branco (valor do cliente é inválido p/ importação)
+    df["PER_REDUCAO_BC_ICMS"] = None
 
     # Garante todas as colunas do template, com defaults
     for col in template_columns:

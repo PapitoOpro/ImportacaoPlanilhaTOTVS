@@ -17,7 +17,6 @@ COLUMN_MAP: dict[str, str] = {
     "PRECO DE VENDA": "Preço Venda",
     "LOCAL DE IMPRESSAO (COZINHA, BAR, ETC)": "Local Impressão",
     "CODIGO BENEFICIO FISCAL": "CodigoBeneficioRBC",
-    "REDUCAO ICMS (%)": "PER_REDUCAO_BC_ICMS",
 }
 
 # Valores de fallback para campos do cliente quando vierem vazios
@@ -45,7 +44,6 @@ FIELD_RULES: dict[str, dict] = {
     "PIS":                 {"type": "decimal"},
     "COFINS":              {"type": "decimal"},
     "Imposto":             {"type": "currency"},
-    "PER_REDUCAO_BC_ICMS": {"type": "currency"},
     "Quantidade Estoque":  {"type": "decimal"},
     "Quantidade Mínima":   {"type": "decimal"},
 }

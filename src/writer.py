@@ -7,24 +7,9 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.utils.dataframe import dataframe_to_rows
 
+from units import UNIT_DESCRIPTIONS
 from validator import ValidationError
 
-_UNIDADE_DESC: dict[str, str] = {
-    "UN":  "UNIDADE",
-    "KG":  "QUILOGRAMA",
-    "G":   "GRAMA",
-    "LT":  "LITRO",
-    "ML":  "MILILITRO",
-    "MT":  "METRO",
-    "CM":  "CENTIMETRO",
-    "CX":  "CAIXA",
-    "PC":  "PECA",
-    "PT":  "POTE",
-    "SC":  "SACO",
-    "DZ":  "DUZIA",
-    "FD":  "FARDO",
-    "BDJ": "BANDEJA",
-}
 
 
 def _build_grupo_subgrupo(df: pd.DataFrame) -> list[dict]:
@@ -134,7 +119,7 @@ def _write_unidades(wb: openpyxl.Workbook, df: pd.DataFrame, numero_loja: str = 
     unidades = sorted({str(v).strip().upper() for v in df["Unidade"].dropna() if str(v).strip()})
 
     for i, un in enumerate(unidades, start=2):
-        desc = _UNIDADE_DESC.get(un, un)
+        desc = UNIT_DESCRIPTIONS.get(un, un)
         ws.cell(i, col_un, un)
         ws.cell(i, col_desc, desc)
         ws.cell(i, col_loja, numero_loja)
