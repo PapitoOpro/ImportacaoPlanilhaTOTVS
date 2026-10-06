@@ -198,6 +198,13 @@ def _parse_data(data: str | None) -> str | None:
         raise HTTPException(status_code=400, detail="Data inválida (use AAAA-MM-DD)") from exc
 
 
+@app.get("/api/fiscal/resumo")
+async def resumo_fiscal():
+    if _FISCAL is None:
+        return {"disponivel": False}
+    return {"disponivel": True, **_FISCAL.summary()}
+
+
 @app.get("/api/fiscal/ncm/{ncm}")
 async def consultar_ncm(ncm: str, data: str | None = None):
     return _require_fiscal().validate_ncm(ncm[:20], _parse_data(data))

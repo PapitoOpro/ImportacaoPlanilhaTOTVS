@@ -138,6 +138,19 @@ class FiscalService:
         tipos = {r["tipo"] for r in self._conn.execute("SELECT DISTINCT tipo FROM importacao")}
         return {"NCM", "CEST"} <= tipos
 
+    def summary(self) -> dict[str, Any]:
+        """Totais vigentes e última importação por tipo (painel inicial)."""
+        hoje = {"d": _ref(None)}
+        ncms = self._conn.execute(f"SELECT COUNT(DISTINCT codigo) FROM ncm WHERE {_VIGENTE}", hoje).fetchone()[0]
+        cests = self._conn.execute(f"SELECT COUNT(DISTINCT codigo) FROM cest WHERE {_VIGENTE}", hoje).fetchone()[0]
+        importacoes = {
+            r["tipo"]: {"versao": r["versao"], "fonte": r["fonte"], "data": r["data_importacao"],
+                        "oficial": bool(r["fonte_oficial"])}
+            for r in self._conn.execute(
+                "SELECT * FROM importacao i WHERE id = (SELECT MAX(id) FROM importacao WHERE tipo = i.tipo)")
+        }
+        return {"ncms_vigentes": ncms, "cests_vigentes": cests, "importacoes": importacoes}
+
     # ------------------------------------------------------------------ validações
 
     def validate_ncm(self, ncm: str, reference_date: date | str | None = None) -> dict[str, Any]:

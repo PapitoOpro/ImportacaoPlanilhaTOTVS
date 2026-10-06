@@ -1,160 +1,255 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Importação TOTVS Food</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            base:   '#0f1623',
+            panel:  '#172031',
+            card:   '#1b2536',
+            line:   '#263247',
+            muted:  '#8a96ab',
+            accent: '#487fff',
+          },
+        },
+      },
+    };
+  </script>
   <style>
-    .drop-active { border-color: #2563eb; background: #eff6ff; }
+    body { background: #0f1623; color-scheme: dark; }
+    .drop-active { border-color: #487fff !important; background: rgba(72,127,255,.08); }
     .fade-in { animation: fadeIn .3s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .nav-link.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+    .nav-link.active { background: #487fff; color: #fff; box-shadow: 0 6px 16px -6px rgba(72,127,255,.7); }
+    .nav-link.active .nav-dot { background: #fff; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #263247; border-radius: 8px; }
+    details > summary { list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
   </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-800">
+<body class="min-h-screen font-sans text-slate-300 antialiased">
 
-  <!-- Topbar mobile -->
-  <header class="md:hidden flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
-    <span class="font-bold">Importação TOTVS Food</span>
-    <button onclick="toggleMenu()" class="text-gray-600 text-xl" aria-label="Menu">☰</button>
-  </header>
+  <!-- Overlay mobile -->
+  <div id="overlay" class="hidden fixed inset-0 z-30 bg-black/60 md:hidden" onclick="toggleMenu(false)"></div>
 
-  <div class="flex">
-    <!-- Menu lateral -->
-    <aside id="sidebar"
-           class="hidden md:flex fixed md:sticky top-0 z-20 h-screen w-64 shrink-0 flex-col bg-white border-r border-gray-200">
-      <div class="px-6 py-6 border-b border-gray-100">
-        <p class="font-bold text-lg">Importação</p>
-        <p class="text-xs text-gray-400">TOTVS Food</p>
+  <!-- ===================== MENU LATERAL ===================== -->
+  <aside id="sidebar"
+         class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full md:translate-x-0 transition-transform bg-panel border-r border-line flex flex-col">
+    <div class="h-16 flex items-center gap-3 px-6 border-b border-line">
+      <div class="w-9 h-9 rounded-xl bg-accent flex items-center justify-center text-white font-bold">T</div>
+      <div class="leading-tight">
+        <p class="font-bold text-white">ImportaFood</p>
+        <p class="text-[11px] text-muted">TOTVS Food</p>
       </div>
-      <nav class="flex-1 p-3 flex flex-col gap-1 text-sm">
-        <a href="#home" data-view="home" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
-          <span>🏠</span> Início
-        </a>
-        <p class="px-3 pt-4 pb-1 text-xs text-gray-400 uppercase tracking-wide">Planilhas</p>
-        <a href="#produtos" data-view="produtos" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
-          <span>📦</span> Cadastro de Produtos
-        </a>
-        <a href="#regras-ncm" data-view="regras-ncm" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100">
-          <span>🧾</span> Regra NCM / Dados Fiscais
-        </a>
-      </nav>
-    </aside>
+    </div>
+    <nav class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 text-sm">
+      <p class="px-3 pt-2 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Principal</p>
+      <a href="#home" data-view="home" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
+        <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Dashboard
+      </a>
+      <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Conversões</p>
+      <a href="#produtos" data-view="produtos" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
+        <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Cadastro de Produtos
+      </a>
+      <a href="#regras-ncm" data-view="regras-ncm" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
+        <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Regra NCM / Dados Fiscais
+      </a>
+      <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Base Fiscal</p>
+      <a href="#consulta" data-view="consulta" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
+        <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Consulta NCM / CEST
+      </a>
+    </nav>
+    <div class="p-4 border-t border-line text-[11px] text-muted" id="sidebarBase">Base fiscal: carregando…</div>
+  </aside>
 
-    <main class="flex-1 min-w-0 px-4 py-10 md:px-10">
+  <div class="md:ml-64 min-h-screen flex flex-col">
+    <!-- ===================== TOPO ===================== -->
+    <header class="sticky top-0 z-20 h-16 bg-panel/95 backdrop-blur border-b border-line flex items-center gap-3 px-4 md:px-6">
+      <button onclick="toggleMenu()" class="md:hidden text-slate-300 text-xl" aria-label="Menu">☰</button>
+      <form id="topSearch" class="flex-1 max-w-md relative">
+        <input name="q" type="search" placeholder="Buscar NCM ou CEST…" autocomplete="off"
+               class="w-full bg-card border border-line rounded-lg pl-10 pr-3 py-2 text-sm text-slate-200 placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent/60" />
+        <svg class="absolute left-3 top-2.5 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/>
+        </svg>
+      </form>
+      <span id="basePill" class="hidden sm:inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-line text-muted">
+        <span class="w-2 h-2 rounded-full bg-muted"></span> Base fiscal
+      </span>
+    </header>
 
-      <!-- ============ HOME ============ -->
-      <section id="view-home" class="view max-w-3xl mx-auto">
-        <h1 class="text-2xl font-bold">Importação de Planilhas</h1>
-        <p class="text-gray-500 mt-1 text-sm">Escolha qual planilha deseja converter a partir do cadastro enviado pelo cliente.</p>
+    <main class="flex-1 p-4 md:p-6">
 
-        <div class="grid sm:grid-cols-2 gap-4 mt-8">
-          <a href="#produtos" class="block bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:border-blue-400 hover:shadow transition">
-            <p class="text-2xl">📦</p>
-            <p class="font-semibold mt-2">Cadastro de Produtos</p>
-            <p class="text-sm text-gray-500 mt-1">Gera a PlanilhaImportaçãoLoja.xlsm com produtos, grupos e unidades.</p>
-          </a>
-          <a href="#regras-ncm" class="block bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:border-blue-400 hover:shadow transition">
-            <p class="text-2xl">🧾</p>
-            <p class="font-semibold mt-2">Regra NCM / Dados Fiscais</p>
-            <p class="text-sm text-gray-500 mt-1">Gera a ImportacaoRegraNCMDadosFiscais.xlsx (Simples Nacional ou Regime Normal).</p>
-          </a>
+      <!-- ===================== DASHBOARD ===================== -->
+      <section id="view-home" class="view">
+        <div class="page-head" data-title="Dashboard" data-crumb="Dashboard"></div>
+
+        <div id="homeKpis" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+        <div class="grid lg:grid-cols-3 gap-4 mt-4">
+          <div class="lg:col-span-2 grid sm:grid-cols-2 gap-4">
+            <a href="#produtos" class="group bg-card border border-line rounded-2xl p-6 hover:border-accent transition">
+              <div class="w-11 h-11 rounded-xl bg-accent/15 text-accent flex items-center justify-center text-xl">📦</div>
+              <p class="font-semibold text-white mt-4">Cadastro de Produtos</p>
+              <p class="text-sm text-muted mt-1">Gera a PlanilhaImportaçãoLoja.xlsm com produtos, grupos e unidades.</p>
+              <p class="text-sm text-accent mt-4 group-hover:translate-x-1 transition">Converter →</p>
+            </a>
+            <a href="#regras-ncm" class="group bg-card border border-line rounded-2xl p-6 hover:border-accent transition">
+              <div class="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xl">🧾</div>
+              <p class="font-semibold text-white mt-4">Regra NCM / Dados Fiscais</p>
+              <p class="text-sm text-muted mt-1">Gera a ImportacaoRegraNCMDadosFiscais.xlsx com validação oficial de NCM/CEST.</p>
+              <p class="text-sm text-accent mt-4 group-hover:translate-x-1 transition">Converter →</p>
+            </a>
+          </div>
+          <div class="bg-card border border-line rounded-2xl p-6">
+            <p class="font-semibold text-white">Fontes oficiais</p>
+            <p class="text-xs text-muted mt-1">Tabelas usadas na validação fiscal</p>
+            <div id="homeFontes" class="mt-4 flex flex-col gap-3 text-sm"></div>
+          </div>
         </div>
       </section>
 
-      <!-- ============ PRODUTOS ============ -->
-      <section id="view-produtos" class="view hidden max-w-2xl mx-auto" data-tool="produtos">
-        <h1 class="text-2xl font-bold">Cadastro de Produtos</h1>
-        <p class="text-gray-500 mt-1 text-sm">Automação de importação de cadastro de produtos.</p>
-
-        <div class="tool-card mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <div data-slot="dropzone"></div>
-          <div data-slot="options" class="hidden mt-4 flex flex-col gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Número da Loja</label>
-              <input name="numero_loja" type="text" placeholder="Ex: 1"
-                     class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <!-- ===================== PRODUTOS ===================== -->
+      <section id="view-produtos" class="view hidden" data-tool="produtos">
+        <div class="page-head" data-title="Cadastro de Produtos" data-crumb="Conversões / Cadastro de Produtos"></div>
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-2 bg-card border border-line rounded-2xl p-6">
+            <p class="font-semibold text-white mb-4">Planilha do cliente</p>
+            <div data-slot="dropzone"></div>
+            <div data-slot="options" class="hidden mt-4 grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="field-label">Número da Loja</label>
+                <input name="numero_loja" type="text" placeholder="Ex: 1" class="field" />
+              </div>
             </div>
+            <div data-slot="actions"></div>
           </div>
-          <div data-slot="actions"></div>
+          <div class="bg-card border border-line rounded-2xl p-6 text-sm">
+            <p class="font-semibold text-white">Como funciona</p>
+            <ol class="mt-4 flex flex-col gap-3 text-muted">
+              <li><span class="step">1</span> Envie a planilha de cadastro do cliente (.xls, .xlsx ou .csv).</li>
+              <li><span class="step">2</span> Informe o número da loja.</li>
+              <li><span class="step">3</span> Baixe a PlanilhaImportaçãoLoja.xlsm e, se houver, o relatório de erros.</li>
+            </ol>
+          </div>
         </div>
-
         <div data-slot="results"></div>
-        <div data-slot="aviso" class="hidden mt-4 flex items-start gap-3 bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-yellow-800 text-sm font-medium">
+        <div data-slot="aviso" class="hidden mt-4 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-300 text-sm font-medium">
           ⚠️ LEMBRE-SE de ajustar os dados fiscais na manutenção em massa, arquivo gerado com regra do simples nacional com NCM 21069090!
         </div>
       </section>
 
-      <!-- ============ REGRAS NCM ============ -->
-      <section id="view-regras-ncm" class="view hidden max-w-2xl mx-auto" data-tool="regras-ncm">
-        <h1 class="text-2xl font-bold">Regra NCM / Dados Fiscais</h1>
-        <p class="text-gray-500 mt-1 text-sm">Use a mesma planilha de cadastro de produtos do cliente. Gera uma regra por combinação única de NCM, CEST e dados fiscais.</p>
-
-        <div class="tool-card mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <div data-slot="dropzone"></div>
-          <div data-slot="options" class="hidden mt-4 flex flex-col gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Regime Tributário</label>
-              <select name="regime"
-                      class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                <option value="1">1 - Simples Nacional</option>
-                <option value="2">2 - Simples Nacional - Excesso</option>
-                <option value="3">3 - Regime Normal</option>
-              </select>
-              <p class="text-xs text-gray-400 mt-1">Simples: CST/CSOSN vai na coluna CSOSN, sem PIS/COFINS. Normal: coluna CST + abas PIS/COFINS.</p>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">UF</label>
-                <input name="uf" type="text" value="SP" maxlength="2"
-                       class="w-full uppercase border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <!-- ===================== REGRAS NCM ===================== -->
+      <section id="view-regras-ncm" class="view hidden" data-tool="regras-ncm">
+        <div class="page-head" data-title="Regra NCM / Dados Fiscais" data-crumb="Conversões / Regra NCM"></div>
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-2 bg-card border border-line rounded-2xl p-6">
+            <p class="font-semibold text-white mb-4">Planilha do cliente</p>
+            <div data-slot="dropzone"></div>
+            <div data-slot="options" class="hidden mt-4 grid sm:grid-cols-2 gap-4">
+              <div class="sm:col-span-2">
+                <label class="field-label">Regime Tributário</label>
+                <select name="regime" class="field">
+                  <option value="1">1 - Simples Nacional</option>
+                  <option value="2">2 - Simples Nacional - Excesso</option>
+                  <option value="3">3 - Regime Normal</option>
+                </select>
+                <p class="text-xs text-muted mt-1">Simples: CST/CSOSN na coluna CSOSN, sem PIS/COFINS. Normal: coluna CST + abas PIS/COFINS.</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Número da Loja</label>
-                <input name="numero_loja" type="text" placeholder="Ex: 1"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                <label class="field-label">UF</label>
+                <input name="uf" type="text" value="SP" maxlength="2" class="field uppercase" />
+              </div>
+              <div>
+                <label class="field-label">Número da Loja</label>
+                <input name="numero_loja" type="text" placeholder="Ex: 1" class="field" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="field-label">Seu nome <span class="text-muted font-normal">(auditoria)</span></label>
+                <input name="usuario" type="text" maxlength="100" placeholder="Ex: Rafael" class="field" />
               </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Seu nome <span class="text-gray-400 font-normal">(auditoria)</span></label>
-              <input name="usuario" type="text" maxlength="100" placeholder="Ex: Rafael"
-                     class="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-            </div>
+            <div data-slot="actions"></div>
           </div>
-          <div data-slot="actions"></div>
+          <div class="bg-card border border-line rounded-2xl p-6 text-sm">
+            <p class="font-semibold text-white">Como funciona</p>
+            <ol class="mt-4 flex flex-col gap-3 text-muted">
+              <li><span class="step">1</span> Use a mesma planilha de cadastro de produtos do cliente.</li>
+              <li><span class="step">2</span> Uma regra é gerada por combinação única de NCM, CEST e dados fiscais.</li>
+              <li><span class="step">3</span> NCM/CEST são validados nas tabelas oficiais. NCM ou CEST inexistente rejeita o produto.</li>
+              <li><span class="step">4</span> O CEST nunca é preenchido automaticamente.</li>
+            </ol>
+          </div>
         </div>
-
         <div data-slot="results"></div>
-        <div data-slot="fiscal" class="hidden mt-6 fade-in"></div>
+        <div data-slot="fiscal" class="hidden mt-4 fade-in"></div>
+      </section>
+
+      <!-- ===================== CONSULTA ===================== -->
+      <section id="view-consulta" class="view hidden">
+        <div class="page-head" data-title="Consulta NCM / CEST" data-crumb="Base Fiscal / Consulta"></div>
+        <form id="consultaForm" class="bg-card border border-line rounded-2xl p-6 grid sm:grid-cols-4 gap-4 items-end">
+          <div>
+            <label class="field-label">NCM</label>
+            <input name="ncm" type="text" placeholder="2203.00.00" maxlength="20" class="field" />
+          </div>
+          <div>
+            <label class="field-label">CEST <span class="text-muted font-normal">(opcional)</span></label>
+            <input name="cest" type="text" placeholder="03.021.00" maxlength="20" class="field" />
+          </div>
+          <div>
+            <label class="field-label">Data de referência</label>
+            <input name="data" type="date" class="field" />
+          </div>
+          <button type="submit" class="bg-accent hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
+        </form>
+        <div id="consultaResultado" class="mt-4"></div>
       </section>
     </main>
+
+    <footer class="px-6 py-4 border-t border-line text-xs text-muted flex justify-between">
+      <span>© 2026 ImportaFood · Importação TOTVS Food</span>
+      <span>NCM: Receita Federal · CEST: CONFAZ</span>
+    </footer>
   </div>
 
-<!-- Componentes reutilizáveis -->
+<!-- ===================== COMPONENTES ===================== -->
 <template id="tpl-dropzone">
-  <div class="dropzone border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer transition-all">
-    <svg class="mx-auto mb-3 text-gray-400 w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-    </svg>
-    <p class="text-gray-600 font-medium">Arraste a planilha do cliente aqui</p>
-    <p class="text-gray-400 text-sm mt-1">ou clique para selecionar</p>
-    <p class="text-gray-300 text-xs mt-3">.xls · .xlsx · .csv</p>
+  <div class="dropzone border-2 border-dashed border-line rounded-xl p-10 text-center cursor-pointer transition-all hover:border-accent/60">
+    <div class="w-12 h-12 mx-auto rounded-full bg-accent/15 text-accent flex items-center justify-center">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+      </svg>
+    </div>
+    <p class="text-slate-200 font-medium mt-3">Arraste a planilha do cliente aqui</p>
+    <p class="text-muted text-sm mt-1">ou clique para selecionar</p>
+    <p class="text-muted/70 text-xs mt-3">.xls · .xlsx · .csv</p>
   </div>
   <input type="file" accept=".xls,.xlsx,.xlsm,.csv" class="file-input hidden" />
-  <div class="file-info hidden mt-4 flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-    <span class="text-blue-500">📄</span>
-    <span class="file-name text-sm text-blue-700 font-medium truncate flex-1"></span>
-    <button type="button" class="btn-reset text-gray-400 hover:text-gray-600 shrink-0">✕</button>
+  <div class="file-info hidden mt-4 flex items-center gap-3 p-3 bg-accent/10 border border-accent/30 rounded-lg">
+    <span>📄</span>
+    <span class="file-name text-sm text-blue-300 font-medium truncate flex-1"></span>
+    <button type="button" class="btn-reset text-muted hover:text-white shrink-0" aria-label="Remover arquivo">✕</button>
   </div>
 </template>
 
 <template id="tpl-actions">
-  <button type="button" class="btn-processar hidden mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors">
+  <button type="button" class="btn-processar hidden mt-5 w-full bg-accent hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition">
     Processar planilha
   </button>
-  <div class="loading hidden mt-5 flex items-center justify-center gap-3 text-gray-500">
+  <div class="loading hidden mt-5 flex items-center justify-center gap-3 text-muted">
     <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -164,127 +259,121 @@
 </template>
 
 <template id="tpl-results">
-  <div class="results hidden mt-6 fade-in">
-    <div class="stats grid gap-4 mb-4"></div>
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h2 class="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Downloads</h2>
-      <div class="flex flex-col gap-3">
-        <button type="button" class="btn-resultado flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors"></button>
-        <button type="button" class="btn-erros hidden flex items-center gap-3 bg-red-50 hover:bg-red-100 text-red-700 font-medium py-3 px-4 rounded-xl border border-red-200 transition-colors">
-          ⚠️ Baixar relatório de erros (erros.xlsx)
-        </button>
+  <div class="results hidden mt-4 fade-in">
+    <div class="stats grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+    <div class="grid lg:grid-cols-3 gap-4 mt-4">
+      <div class="bg-card border border-line rounded-2xl p-6">
+        <p class="font-semibold text-white mb-4">Downloads</p>
+        <div class="flex flex-col gap-3">
+          <button type="button" class="btn-resultado flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 px-4 rounded-lg transition text-sm text-left"></button>
+          <button type="button" class="btn-erros hidden flex items-center gap-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-medium py-3 px-4 rounded-lg border border-rose-500/30 transition text-sm text-left">
+            ⚠️ Relatório de erros (erros.xlsx)
+          </button>
+        </div>
+        <button type="button" class="btn-novo mt-6 w-full text-muted hover:text-white text-sm py-2 transition">← Processar outro arquivo</button>
       </div>
-      <div class="erros-container hidden mt-6">
-        <h2 class="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Linhas rejeitadas</h2>
-        <div class="overflow-x-auto rounded-xl border border-gray-100">
+      <div class="erros-container hidden lg:col-span-2 bg-card border border-line rounded-2xl p-6">
+        <p class="font-semibold text-white mb-4">Linhas rejeitadas</p>
+        <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
           <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-              <tr>
-                <th class="py-2 px-3 text-left">Linha</th>
-                <th class="py-2 px-3 text-left">Campo</th>
-                <th class="py-2 px-3 text-left">Valor</th>
-                <th class="py-2 px-3 text-left">Motivo</th>
+            <thead class="text-muted text-xs uppercase sticky top-0 bg-card">
+              <tr class="border-b border-line">
+                <th class="py-3 px-3 text-left font-medium">Linha</th>
+                <th class="py-3 px-3 text-left font-medium">Campo</th>
+                <th class="py-3 px-3 text-left font-medium">Valor</th>
+                <th class="py-3 px-3 text-left font-medium">Motivo</th>
               </tr>
             </thead>
-            <tbody class="erros-body divide-y divide-gray-100 text-gray-700"></tbody>
+            <tbody class="erros-body divide-y divide-line"></tbody>
           </table>
         </div>
       </div>
+      <div class="sem-erros hidden lg:col-span-2 bg-card border border-line rounded-2xl p-6 flex items-center justify-center text-emerald-400 text-sm">
+        ✅ Nenhuma linha rejeitada.
+      </div>
     </div>
-    <button type="button" class="btn-novo mt-4 w-full text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors">
-      ← Processar outro arquivo
-    </button>
   </div>
 </template>
+
+<style type="text/tailwindcss">
+  .field-label { @apply block text-sm font-medium text-slate-300 mb-1.5; }
+  .field { @apply w-full bg-panel border border-line rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent/60; }
+  .step { @apply inline-flex w-6 h-6 mr-2 items-center justify-center rounded-full bg-accent/15 text-accent text-xs font-semibold; }
+</style>
 
 <script>
   const MIME_XLSM = 'application/vnd.ms-excel.sheet.macroEnabled.12';
   const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  const KPI_COLORS = {
+    blue:    ['bg-accent', 'from-accent/20'],
+    green:   ['bg-emerald-500', 'from-emerald-500/20'],
+    orange:  ['bg-orange-500', 'from-orange-500/20'],
+    purple:  ['bg-violet-500', 'from-violet-500/20'],
+    rose:    ['bg-rose-500', 'from-rose-500/20'],
+    cyan:    ['bg-cyan-500', 'from-cyan-500/20'],
+  };
 
   const TOOLS = {
     'produtos': {
       endpoint: '/processar',
       arquivo: 'PlanilhaImportaçãoLoja.xlsm',
       mime: MIME_XLSM,
-      stats: [['total', 'Total', 'text-gray-800'], ['exportados', 'Exportados', 'text-green-600'], ['rejeitados', 'Rejeitados', 'text-red-500']],
+      stats: [
+        ['total', 'Produtos na planilha', '📋', 'blue'],
+        ['exportados', 'Exportados', '✅', 'green'],
+        ['rejeitados', 'Rejeitados', '⛔', 'rose'],
+      ],
       aviso: true,
     },
     'regras-ncm': {
       endpoint: '/processar-regras-ncm',
       arquivo: 'ImportacaoRegraNCMDadosFiscais.xlsx',
       mime: MIME_XLSX,
-      stats: [['total', 'Produtos', 'text-gray-800'], ['regras', 'Regras geradas', 'text-blue-600'], ['exportados', 'Válidos', 'text-green-600'], ['rejeitados', 'Rejeitados', 'text-red-500']],
+      stats: [
+        ['total', 'Produtos na planilha', '📋', 'blue'],
+        ['regras', 'Regras geradas', '🧾', 'purple'],
+        ['exportados', 'Produtos válidos', '✅', 'green'],
+        ['rejeitados', 'Rejeitados', '⛔', 'rose'],
+      ],
       aviso: false,
       fiscal: true,
     },
   };
 
   const STATUS_FISCAL = {
-    VALID:             { label: 'NCM e CEST relacionados',   cls: 'bg-green-50 text-green-700 border-green-200', ok: true },
-    NO_CEST:           { label: 'Sem CEST relacionado',      cls: 'bg-gray-50 text-gray-600 border-gray-200', ok: true },
-    MULTIPLE_CEST:     { label: 'Múltiplos CESTs possíveis', cls: 'bg-yellow-50 text-yellow-800 border-yellow-300' },
-    NEEDS_REVIEW:      { label: 'Necessita revisão',         cls: 'bg-yellow-50 text-yellow-800 border-yellow-300' },
-    NCM_CEST_MISMATCH: { label: 'CEST sem relação com NCM',  cls: 'bg-orange-50 text-orange-700 border-orange-300' },
-    INVALID_CEST:      { label: 'CEST inválido',             cls: 'bg-red-50 text-red-700 border-red-200' },
-    INVALID_NCM:       { label: 'NCM inválido',              cls: 'bg-red-50 text-red-700 border-red-200' },
+    VALID:             { label: 'NCM e CEST relacionados',   badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', color: '#10b981', ok: true },
+    NO_CEST:           { label: 'Sem CEST relacionado',      badge: 'bg-slate-500/15 text-slate-300 border-slate-500/30',       color: '#64748b', ok: true },
+    MULTIPLE_CEST:     { label: 'Múltiplos CESTs possíveis', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',       color: '#f59e0b' },
+    NEEDS_REVIEW:      { label: 'Necessita revisão',         badge: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',    color: '#eab308' },
+    NCM_CEST_MISMATCH: { label: 'CEST sem relação com NCM',  badge: 'bg-orange-500/15 text-orange-300 border-orange-500/30',    color: '#f97316' },
+    INVALID_CEST:      { label: 'CEST inválido',             badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30',          color: '#f43f5e' },
+    INVALID_NCM:       { label: 'NCM inválido',              badge: 'bg-red-500/15 text-red-300 border-red-500/30',             color: '#dc2626' },
   };
 
-  function fiscalCard(a) {
-    const st = STATUS_FISCAL[a.status] || { label: a.status, cls: '' };
-    const rel = a.related_cests || [];
-    const msgs = (a.messages || []).filter(m => m !== 'NCM válido.').join(' ');
-    const relHtml = rel.length
-      ? `<details class="mt-2 text-xs text-gray-600"><summary class="cursor-pointer">CESTs relacionados ao NCM (${rel.length})</summary>
-           <ul class="mt-1 ml-4 list-disc">${rel.map(c => `<li><b>${esc(c.code_formatted)}</b> — ${esc(c.description)}</li>`).join('')}</ul></details>`
-      : '';
-    const cestHtml = a.cest
-      ? `<b>${esc(a.cest_formatted)}</b> ${a.cest_valid ? '✅' : '❌'}`
-      : '<i>não informado</i>';
-    return `
-      <div class="border rounded-xl p-4 ${st.cls}">
-        <div class="flex justify-between gap-3">
-          <p class="font-semibold text-gray-800">${esc(a.produto) || '(sem nome)'} <span class="text-xs text-gray-400 font-normal">linha ${esc(a.linha)}</span></p>
-          <span class="text-xs font-semibold whitespace-nowrap">${esc(st.label)}</span>
-        </div>
-        <p class="mt-2 text-sm text-gray-700">NCM <b>${esc(a.ncm_formatted)}</b> ${a.ncm_valid ? '✅' : '❌'}
-          ${a.ncm_description ? `<span class="block text-xs text-gray-500">${esc(a.ncm_description)}</span>` : ''}</p>
-        <p class="mt-1 text-sm text-gray-700">CEST ${cestHtml}
-          ${a.cest_description ? `<span class="block text-xs text-gray-500">${esc(a.cest_description)}</span>` : ''}</p>
-        ${relHtml}
-        <p class="mt-2 text-xs">⚠️ ${esc(msgs)}</p>
-      </div>`;
-  }
-
-  function renderFiscal(container, data) {
-    if (!data.base_fiscal) {
-      container.innerHTML = `<div class="bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-yellow-800 text-sm">
-        ⚠️ Base fiscal oficial (NCM/CEST) não carregada no servidor — NCM e CEST não foram validados.</div>`;
-      return;
-    }
-    const resumo = Object.entries(data.resumo_fiscal || {});
-    const atencao = (data.analise || []).filter(a => !STATUS_FISCAL[a.status]?.ok);
-    const chips = resumo.map(([k, n]) =>
-      `<span class="text-xs border rounded-full px-3 py-1 ${STATUS_FISCAL[k]?.cls || ''}">${esc(STATUS_FISCAL[k]?.label || k)}: <b>${n}</b></span>`).join('');
-    const btn = data.arquivo_analise
-      ? `<button type="button" class="btn-analise mt-4 w-full flex items-center gap-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-3 px-4 rounded-xl border border-blue-200">📊 Baixar análise fiscal completa (analise_fiscal.xlsx)</button>`
-      : '';
-    const lista = atencao.length
-      ? `<h3 class="text-sm font-semibold text-gray-700 mt-6 mb-3">Produtos que requerem atenção (${atencao.length})</h3>
-         <div class="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-1">${atencao.map(fiscalCard).join('')}</div>`
-      : '<p class="text-sm text-green-700 mt-4">✅ Nenhum produto requer atenção.</p>';
-    container.innerHTML = `
-      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Análise fiscal (NCM / CEST)</h2>
-        <p class="text-xs text-gray-400 mt-1">Validação contra tabelas oficiais (Receita/Siscomex e CONFAZ Conv. ICMS 142/18). O CEST nunca é preenchido automaticamente.</p>
-        <div class="flex flex-wrap gap-2 mt-4">${chips}</div>
-        ${btn}
-        ${lista}
-      </div>`;
-    container.querySelector('.btn-analise')?.addEventListener('click',
-      () => baixarB64(data.arquivo_analise, 'analise_fiscal.xlsx', MIME_XLSX));
-  }
-
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtInt = n => Number(n ?? 0).toLocaleString('pt-BR');
+  const fmtDate = iso => iso ? iso.split('-').reverse().join('/') : '—';
+
+  function kpi(label, value, icon, color, sub = '') {
+    const [bg, grad] = KPI_COLORS[color] || KPI_COLORS.blue;
+    return `
+      <div class="relative overflow-hidden bg-card border border-line rounded-2xl p-5 bg-gradient-to-br ${grad} to-transparent">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 shrink-0 rounded-full ${bg} flex items-center justify-center text-xl shadow-lg">${icon}</div>
+          <div class="min-w-0">
+            <p class="text-sm text-muted">${esc(label)}</p>
+            <p class="text-2xl font-bold text-white truncate">${esc(value)}</p>
+          </div>
+        </div>
+        ${sub ? `<p class="text-xs text-muted mt-4 truncate">${sub}</p>` : ''}
+      </div>`;
+  }
+
+  function badge(status) {
+    const st = STATUS_FISCAL[status] || { label: status, badge: 'border-line text-muted' };
+    return `<span class="inline-block text-[11px] font-medium border rounded-md px-2 py-0.5 whitespace-nowrap ${st.badge}">${esc(st.label)}</span>`;
+  }
 
   function baixarB64(b64, filename, mime) {
     const bytes = atob(b64);
@@ -299,6 +388,126 @@
     URL.revokeObjectURL(a.href);
   }
 
+  // ------------------------------------------------------------- cabeçalho das páginas
+  document.querySelectorAll('.page-head').forEach(el => {
+    el.className = 'flex flex-wrap items-center justify-between gap-2 mb-6';
+    el.innerHTML = `<h1 class="text-xl font-semibold text-white">${esc(el.dataset.title)}</h1>
+      <p class="text-sm text-muted">🏠 ${esc(el.dataset.crumb)}</p>`;
+  });
+
+  // ------------------------------------------------------------- análise fiscal (regras NCM)
+  let fiscalChart = null;
+
+  function fiscalDetalhe(a) {
+    const rel = a.related_cests || [];
+    const msgs = (a.messages || []).filter(m => m !== 'NCM válido.').join(' ');
+    return `
+      <div class="grid sm:grid-cols-2 gap-4 text-xs">
+        <div>
+          <p class="text-muted">Descrição NCM (oficial)</p>
+          <p class="text-slate-200 mt-1">${esc(a.ncm_description) || '—'}</p>
+        </div>
+        <div>
+          <p class="text-muted">Descrição CEST (oficial)</p>
+          <p class="text-slate-200 mt-1">${esc(a.cest_description) || '—'}</p>
+        </div>
+      </div>
+      ${rel.length ? `
+        <p class="text-muted text-xs mt-4">CESTs relacionados ao NCM (${rel.length})</p>
+        <ul class="mt-2 grid gap-1 text-xs">${rel.map(c =>
+          `<li class="flex gap-2"><b class="text-slate-200 whitespace-nowrap">${esc(c.code_formatted)}</b><span class="text-muted">${esc(c.description)}</span></li>`).join('')}</ul>` : ''}
+      <p class="mt-4 text-xs text-amber-300">⚠️ ${esc(msgs)}</p>`;
+  }
+
+  function renderFiscal(container, data) {
+    if (!data.base_fiscal) {
+      container.innerHTML = `<div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-300 text-sm">
+        ⚠️ Base fiscal oficial (NCM/CEST) não carregada no servidor — NCM e CEST não foram validados.</div>`;
+      return;
+    }
+    const resumo = Object.entries(data.resumo_fiscal || {}).sort((a, b) => b[1] - a[1]);
+    const total = resumo.reduce((s, [, n]) => s + n, 0) || 1;
+    const atencao = (data.analise || []).filter(a => !STATUS_FISCAL[a.status]?.ok);
+
+    const legenda = resumo.map(([k, n]) => {
+      const st = STATUS_FISCAL[k] || { label: k, color: '#64748b' };
+      const pct = Math.round((n / total) * 100);
+      return `
+        <div>
+          <div class="flex justify-between text-xs"><span class="flex items-center gap-2 text-slate-300">
+            <span class="w-2.5 h-2.5 rounded-full" style="background:${st.color}"></span>${esc(st.label)}</span>
+            <span class="text-muted">${n} · ${pct}%</span></div>
+          <div class="h-1.5 bg-panel rounded-full mt-1.5"><div class="h-1.5 rounded-full" style="width:${pct}%;background:${st.color}"></div></div>
+        </div>`;
+    }).join('');
+
+    const linhas = atencao.map((a, i) => `
+      <tr class="hover:bg-panel/60 cursor-pointer" data-row="${i}">
+        <td class="py-3 px-3 text-muted">${esc(a.linha)}</td>
+        <td class="py-3 px-3 text-slate-200">${esc(a.produto) || '(sem nome)'}</td>
+        <td class="py-3 px-3 whitespace-nowrap">${esc(a.ncm_formatted)} ${a.ncm_valid ? '<span class="text-emerald-400">✓</span>' : '<span class="text-rose-400">✕</span>'}</td>
+        <td class="py-3 px-3 whitespace-nowrap">${a.cest ? `${esc(a.cest_formatted)} ${a.cest_valid ? '<span class="text-emerald-400">✓</span>' : '<span class="text-rose-400">✕</span>'}` : '<span class="text-muted">—</span>'}</td>
+        <td class="py-3 px-3">${badge(a.status)}</td>
+      </tr>
+      <tr class="detalhe hidden bg-panel/40" data-detail="${i}"><td colspan="5" class="px-4 py-4">${fiscalDetalhe(a)}</td></tr>`).join('');
+
+    container.innerHTML = `
+      <div class="grid lg:grid-cols-3 gap-4">
+        <div class="bg-card border border-line rounded-2xl p-6">
+          <p class="font-semibold text-white">Análise fiscal</p>
+          <p class="text-xs text-muted mt-1">NCM/CEST × tabelas oficiais</p>
+          <div class="relative h-48 mt-4"><canvas class="fiscal-chart"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <p class="text-2xl font-bold text-white">${fmtInt(total)}</p><p class="text-xs text-muted">produtos</p>
+            </div>
+          </div>
+          <div class="mt-6 flex flex-col gap-3">${legenda}</div>
+          ${data.arquivo_analise ? `<button type="button" class="btn-analise mt-6 w-full bg-accent/15 hover:bg-accent/25 text-blue-300 border border-accent/30 font-medium py-2.5 rounded-lg text-sm transition">📊 Baixar análise completa</button>` : ''}
+        </div>
+        <div class="lg:col-span-2 bg-card border border-line rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-white">Produtos que requerem atenção</p>
+            <span class="text-xs text-muted">${atencao.length} de ${fmtInt(total)} · clique para detalhes</span>
+          </div>
+          ${atencao.length ? `
+            <div class="overflow-x-auto max-h-[520px] overflow-y-auto mt-4">
+              <table class="w-full text-sm">
+                <thead class="text-muted text-xs uppercase sticky top-0 bg-card">
+                  <tr class="border-b border-line">
+                    <th class="py-3 px-3 text-left font-medium">Linha</th>
+                    <th class="py-3 px-3 text-left font-medium">Produto</th>
+                    <th class="py-3 px-3 text-left font-medium">NCM</th>
+                    <th class="py-3 px-3 text-left font-medium">CEST</th>
+                    <th class="py-3 px-3 text-left font-medium">Situação</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-line">${linhas}</tbody>
+              </table>
+            </div>` : '<p class="text-sm text-emerald-400 mt-6">✅ Nenhum produto requer atenção.</p>'}
+          <p class="text-[11px] text-muted mt-4">O CEST nunca é preenchido automaticamente. Fontes: Receita Federal (NCM) e CONFAZ Conv. ICMS 142/18 (CEST).</p>
+        </div>
+      </div>`;
+
+    container.querySelectorAll('tr[data-row]').forEach(tr => tr.addEventListener('click', () =>
+      container.querySelector(`tr[data-detail="${tr.dataset.row}"]`).classList.toggle('hidden')));
+    container.querySelector('.btn-analise')?.addEventListener('click',
+      () => baixarB64(data.arquivo_analise, 'analise_fiscal.xlsx', MIME_XLSX));
+
+    if (fiscalChart) fiscalChart.destroy();
+    if (window.Chart) {
+      fiscalChart = new Chart(container.querySelector('.fiscal-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: resumo.map(([k]) => STATUS_FISCAL[k]?.label || k),
+          datasets: [{ data: resumo.map(([, n]) => n), backgroundColor: resumo.map(([k]) => STATUS_FISCAL[k]?.color || '#64748b'),
+                       borderColor: '#1b2536', borderWidth: 3 }],
+        },
+        options: { cutout: '72%', maintainAspectRatio: false, plugins: { legend: { display: false } } },
+      });
+    }
+  }
+
+  // ------------------------------------------------------------- ferramentas de conversão
   function initTool(section) {
     const cfg = TOOLS[section.dataset.tool];
     const slot = name => section.querySelector(`[data-slot="${name}"]`);
@@ -314,25 +523,28 @@
     const defaults = [...options.querySelectorAll('[name]')].map(el => [el, el.value]);
     let file = null, arquivoB64 = null, errosB64 = null;
 
+    const hideOutputs = () => {
+      show('.results', false);
+      aviso?.classList.add('hidden');
+      fiscal?.classList.add('hidden');
+    };
+
     function setFile(f) {
       file = f;
       $('.file-name').textContent = f.name;
       show('.file-info', true);
       options.classList.remove('hidden');
       show('.btn-processar', true);
-      show('.results', false);
-      aviso?.classList.add('hidden');
-      fiscal?.classList.add('hidden');
+      hideOutputs();
     }
 
     function reset() {
       file = arquivoB64 = errosB64 = null;
       $('.file-input').value = '';
       defaults.forEach(([el, v]) => el.value = v);
-      ['.file-info', '.btn-processar', '.results', '.loading'].forEach(s => show(s, false));
+      ['.file-info', '.btn-processar', '.loading'].forEach(s => show(s, false));
       options.classList.add('hidden');
-      fiscal?.classList.add('hidden');
-      aviso?.classList.add('hidden');
+      hideOutputs();
     }
 
     const dz = $('.dropzone');
@@ -343,17 +555,16 @@
     $('.file-input').onchange = e => { if (e.target.files[0]) setFile(e.target.files[0]); };
     $('.btn-reset').onclick = reset;
     $('.btn-novo').onclick = reset;
-    $('.btn-resultado').innerHTML = `⬇️ Baixar ${esc(cfg.arquivo)}`;
+    $('.btn-resultado').innerHTML = `<span>⬇️</span><span class="truncate">${esc(cfg.arquivo)}</span>`;
     $('.btn-resultado').onclick = () => baixarB64(arquivoB64, cfg.arquivo, cfg.mime);
     $('.btn-erros').onclick = () => baixarB64(errosB64, 'erros.xlsx', MIME_XLSX);
-    $('.stats').classList.add(`grid-cols-2`, `sm:grid-cols-${cfg.stats.length}`);
+    $('.stats').classList.add(cfg.stats.length === 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3');
 
     $('.btn-processar').onclick = async () => {
       if (!file) return;
       show('.btn-processar', false);
       show('.loading', true);
-      show('.results', false);
-      fiscal?.classList.add('hidden');
+      hideOutputs();
 
       const form = new FormData();
       form.append('file', file);
@@ -371,21 +582,18 @@
         arquivoB64 = data.arquivo;
         errosB64 = data.arquivo_erros || null;
 
-        $('.stats').innerHTML = cfg.stats.map(([key, label, color]) => `
-          <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
-            <p class="text-3xl font-bold ${color}">${esc(data.stats[key])}</p>
-            <p class="text-xs text-gray-400 mt-1 uppercase tracking-wide">${label}</p>
-          </div>`).join('');
+        $('.stats').innerHTML = cfg.stats.map(([key, label, icon, color]) => kpi(label, fmtInt(data.stats[key]), icon, color)).join('');
 
         const temErros = data.erros && data.erros.length > 0;
         show('.btn-erros', temErros);
         show('.erros-container', temErros);
+        show('.sem-erros', !temErros);
         $('.erros-body').innerHTML = temErros ? data.erros.map(e => `
-          <tr class="hover:bg-gray-50">
-            <td class="py-2 px-3">${esc(e.linha)}</td>
-            <td class="py-2 px-3 font-medium">${esc(e.campo)}</td>
-            <td class="py-2 px-3 text-gray-400">${esc(e.valor) || '—'}</td>
-            <td class="py-2 px-3 text-red-500">${esc(e.motivo)}</td>
+          <tr class="hover:bg-panel/60">
+            <td class="py-3 px-3 text-muted">${esc(e.linha)}</td>
+            <td class="py-3 px-3 text-slate-200 font-medium">${esc(e.campo)}</td>
+            <td class="py-3 px-3 text-muted">${esc(e.valor) || '—'}</td>
+            <td class="py-3 px-3 text-rose-300">${esc(e.motivo)}</td>
           </tr>`).join('') : '';
 
         show('.results', true);
@@ -400,11 +608,99 @@
     };
   }
 
+  // ------------------------------------------------------------- dashboard / base fiscal
+  async function carregarResumo() {
+    let r = { disponivel: false };
+    try { r = await (await fetch('/api/fiscal/resumo')).json(); } catch (_) { /* offline */ }
+
+    const pill = document.getElementById('basePill');
+    pill.innerHTML = r.disponivel
+      ? '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Base fiscal ativa'
+      : '<span class="w-2 h-2 rounded-full bg-amber-400"></span> Base fiscal indisponível';
+    document.getElementById('sidebarBase').textContent = r.disponivel
+      ? `Base fiscal: ${fmtInt(r.ncms_vigentes)} NCMs · ${fmtInt(r.cests_vigentes)} CESTs`
+      : 'Base fiscal não carregada';
+
+    const ncm = r.importacoes?.NCM, cest = r.importacoes?.CEST;
+    document.getElementById('homeKpis').innerHTML = [
+      kpi('NCMs vigentes', r.disponivel ? fmtInt(r.ncms_vigentes) : '—', '🏷️', 'blue', ncm ? `Atualizado em ${fmtDate(ncm.data)}` : 'Sem importação'),
+      kpi('CESTs vigentes', r.disponivel ? fmtInt(r.cests_vigentes) : '—', '🔖', 'green', cest ? `Atualizado em ${fmtDate(cest.data)}` : 'Sem importação'),
+      kpi('Conversões disponíveis', '2', '🔄', 'orange', 'Produtos · Regra NCM'),
+      kpi('Status da base', r.disponivel ? 'Ativa' : 'Inativa', r.disponivel ? '🛡️' : '⚠️', r.disponivel ? 'cyan' : 'rose', 'Fontes oficiais'),
+    ].join('');
+
+    const fonte = (tipo, f) => f ? `
+      <div class="p-3 rounded-xl bg-panel border border-line">
+        <div class="flex justify-between"><span class="text-white font-medium">${tipo}</span>
+          <span class="text-[11px] ${f.oficial ? 'text-emerald-400' : 'text-amber-300'}">${f.oficial ? 'Oficial' : 'Secundária'}</span></div>
+        <p class="text-xs text-muted mt-1">${esc(f.fonte)}</p>
+        <p class="text-xs text-slate-400 mt-1">${esc(f.versao)}</p>
+      </div>` : `<div class="p-3 rounded-xl bg-panel border border-line text-xs text-muted">${tipo}: não importado</div>`;
+    document.getElementById('homeFontes').innerHTML = fonte('NCM', ncm) + fonte('CEST', cest);
+  }
+
+  async function consultar(ncm, cest, data) {
+    const out = document.getElementById('consultaResultado');
+    ncm = (ncm || '').trim(); cest = (cest || '').trim();
+    if (!ncm && !cest) { out.innerHTML = ''; return; }
+    out.innerHTML = '<p class="text-sm text-muted">Consultando…</p>';
+    const params = new URLSearchParams();
+    if (data) params.set('data', data);
+    try {
+      if (!ncm) {
+        const res = await fetch(`/api/fiscal/cest/${encodeURIComponent(cest)}?${params}`);
+        const r = await res.json();
+        if (!res.ok) throw new Error(r.detail);
+        out.innerHTML = `<div class="bg-card border border-line rounded-2xl p-6">
+          <div class="flex justify-between items-center"><p class="font-semibold text-white">CEST ${esc(r.cest)}</p>
+          ${r.valid ? '<span class="text-emerald-400 text-sm">✓ Válido</span>' : '<span class="text-rose-400 text-sm">✕ Não encontrado</span>'}</div>
+          <p class="text-sm text-muted mt-2">${esc(r.description) || 'Não consta no Convênio ICMS 142/18 vigente na data.'}</p></div>`;
+        return;
+      }
+      params.set('ncm', ncm);
+      if (cest) params.set('cest', cest);
+      const res = await fetch(`/api/fiscal/validar?${params}`);
+      const r = await res.json();
+      if (!res.ok) throw new Error(r.detail);
+      out.innerHTML = `
+        <div class="bg-card border border-line rounded-2xl p-6">
+          <div class="flex flex-wrap justify-between items-center gap-2">
+            <p class="font-semibold text-white">NCM ${esc(r.ncm_formatted)}${r.cest ? ` · CEST ${esc(r.cest_formatted)}` : ''}</p>
+            ${badge(r.status)}
+          </div>
+          <p class="text-xs text-muted mt-1">Referência: ${fmtDate(r.reference_date)}</p>
+          <div class="mt-4">${fiscalDetalhe(r)}</div>
+        </div>`;
+    } catch (err) {
+      out.innerHTML = `<div class="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-rose-300 text-sm">${esc(err.message || 'Falha na consulta')}</div>`;
+    }
+  }
+
+  document.getElementById('consultaForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const f = e.target;
+    consultar(f.ncm.value, f.cest.value, f.data.value);
+  });
+
+  document.getElementById('topSearch').addEventListener('submit', e => {
+    e.preventDefault();
+    const q = e.target.q.value.trim();
+    if (!q) return;
+    const digits = q.replace(/\D/g, '');
+    const f = document.getElementById('consultaForm');
+    const isCest = digits.length === 7 || /^\d{2}\.\d{3}\.\d{2}$/.test(q);
+    f.ncm.value = isCest ? '' : q;
+    f.cest.value = isCest ? q : '';
+    location.hash = '#consulta';
+    consultar(f.ncm.value, f.cest.value, f.data.value);
+  });
+
+  // ------------------------------------------------------------- navegação
   function toggleMenu(force) {
     const sb = document.getElementById('sidebar');
-    const open = force ?? sb.classList.contains('hidden');
-    sb.classList.toggle('hidden', !open);
-    sb.classList.toggle('flex', open);
+    const open = force ?? sb.classList.contains('-translate-x-full');
+    sb.classList.toggle('-translate-x-full', !open);
+    document.getElementById('overlay').classList.toggle('hidden', !open);
   }
 
   function route() {
@@ -413,11 +709,13 @@
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== `view-${target}`));
     document.querySelectorAll('.nav-link').forEach(a => a.classList.toggle('active', a.dataset.view === target));
     if (window.innerWidth < 768) toggleMenu(false);
+    window.scrollTo(0, 0);
   }
 
   document.querySelectorAll('[data-tool]').forEach(initTool);
   window.addEventListener('hashchange', route);
   route();
+  carregarResumo();
 </script>
 </body>
 </html>
