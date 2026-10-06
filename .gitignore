@@ -8,3 +8,4 @@ input_teste.xlsx
 *.tmp
 input_teste.xls
 ImportacaoPlanilhaTOTVS/
+data/kb.db

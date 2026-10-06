@@ -6,8 +6,10 @@
   <title>Importação TOTVS Food</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -68,6 +70,10 @@
       <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Base Fiscal</p>
       <a href="#consulta" data-view="consulta" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
         <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Consulta NCM / CEST
+      </a>
+      <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Ajuda</p>
+      <a href="#kb" data-view="kb" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
+        <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Base de Conhecimento
       </a>
     </nav>
     <div class="p-4 border-t border-line text-[11px] text-muted" id="sidebarBase">Base fiscal: carregando…</div>
@@ -215,6 +221,65 @@
           <button type="submit" class="bg-accent hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
         </form>
         <div id="consultaResultado" class="mt-4"></div>
+      </section>
+
+      <!-- ===================== BASE DE CONHECIMENTO ===================== -->
+      <section id="view-kb" class="view hidden">
+        <div class="page-head" data-title="Base de Conhecimento" data-crumb="Ajuda / Base de Conhecimento"></div>
+
+        <div id="kbAviso" class="hidden mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-300 text-sm"></div>
+
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+          <input id="kbBusca" type="search" placeholder="Buscar artigos…" class="field max-w-xs" />
+          <select id="kbCategoria" class="field max-w-[200px]"><option value="">Todas as categorias</option></select>
+          <div class="flex-1"></div>
+          <div id="kbAdminBar" class="hidden flex flex-wrap gap-2">
+            <button type="button" id="kbNovo" class="bg-accent hover:bg-blue-500 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition">+ Novo artigo</button>
+            <button type="button" id="kbPdfBtn" class="bg-card hover:bg-panel border border-line text-slate-200 text-sm font-medium px-4 py-2.5 rounded-lg transition">📄 Importar PDF</button>
+            <input type="file" id="kbPdf" accept="application/pdf,.pdf" class="hidden" />
+            <button type="button" id="kbSair" class="text-muted hover:text-white text-sm px-3 py-2.5">Sair</button>
+          </div>
+          <button type="button" id="kbEntrar" class="text-sm text-muted hover:text-white border border-line rounded-lg px-4 py-2.5">🔒 Entrar como admin</button>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-4">
+          <div class="bg-card border border-line rounded-2xl p-4 max-h-[70vh] overflow-y-auto">
+            <div id="kbLista" class="flex flex-col gap-1 text-sm"></div>
+          </div>
+          <div class="lg:col-span-2">
+            <div id="kbLeitor" class="bg-card border border-line rounded-2xl p-6 min-h-[300px]"></div>
+
+            <form id="kbEditor" class="hidden bg-card border border-line rounded-2xl p-6 flex flex-col gap-4">
+              <div id="kbEditorInfo" class="hidden bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-blue-300"></div>
+              <div class="grid sm:grid-cols-3 gap-4">
+                <div class="sm:col-span-2">
+                  <label class="field-label">Título</label>
+                  <input name="titulo" required maxlength="200" class="field" />
+                </div>
+                <div>
+                  <label class="field-label">Categoria</label>
+                  <input name="categoria" maxlength="60" list="kbCategoriasList" placeholder="Geral" class="field" />
+                  <datalist id="kbCategoriasList"></datalist>
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="field-label !mb-0">Conteúdo <span class="text-muted font-normal">(Markdown: ## título, - lista, **negrito**)</span></label>
+                  <div class="flex text-xs border border-line rounded-lg overflow-hidden">
+                    <button type="button" data-tab="escrever" class="kb-tab px-3 py-1.5 bg-accent text-white">Escrever</button>
+                    <button type="button" data-tab="visualizar" class="kb-tab px-3 py-1.5 text-muted">Visualizar</button>
+                  </div>
+                </div>
+                <textarea name="conteudo" required rows="18" class="field font-mono text-xs leading-relaxed"></textarea>
+                <div id="kbPreview" class="hidden prose prose-invert prose-sm max-w-none bg-panel border border-line rounded-lg p-4 min-h-[300px]"></div>
+              </div>
+              <div class="flex justify-end gap-3">
+                <button type="button" id="kbCancelar" class="text-muted hover:text-white text-sm px-4 py-2.5">Cancelar</button>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition">Salvar artigo</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -709,7 +774,227 @@
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('hidden', v.id !== `view-${target}`));
     document.querySelectorAll('.nav-link').forEach(a => a.classList.toggle('active', a.dataset.view === target));
     if (window.innerWidth < 768) toggleMenu(false);
+    if (target === 'kb') initKb();
     window.scrollTo(0, 0);
+  }
+
+  // ------------------------------------------------------------- base de conhecimento
+  const KB = {
+    senha: (() => { try { return sessionStorage.getItem('kbSenha') || ''; } catch (_) { return ''; } })(),
+    atual: null,       // artigo aberto
+    editando: null,    // id em edição (null = novo)
+    rascunhoPdf: null, // {origem, arquivo_origem}
+    carregado: false,
+  };
+  const kb$ = id => document.getElementById(id);
+  const renderMd = md => window.marked && window.DOMPurify
+    ? DOMPurify.sanitize(marked.parse(md || ''))
+    : `<pre class="whitespace-pre-wrap">${esc(md)}</pre>`;
+
+  async function kbFetch(url, opts = {}) {
+    const headers = { ...(opts.headers || {}) };
+    if (KB.senha) headers['X-Admin-Password'] = KB.senha;
+    const res = await fetch(url, { ...opts, headers });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const det = Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : data.detail;
+      throw Object.assign(new Error(det || `Erro ${res.status}`), { status: res.status });
+    }
+    return data;
+  }
+
+  function kbSetAdmin(senha) {
+    KB.senha = senha;
+    try { senha ? sessionStorage.setItem('kbSenha', senha) : sessionStorage.removeItem('kbSenha'); } catch (_) { /* sem storage */ }
+    kb$('kbAdminBar').classList.toggle('hidden', !senha);
+    kb$('kbEntrar').classList.toggle('hidden', !!senha);
+    if (KB.atual) kbMostrar(KB.atual);
+  }
+
+  async function kbStatus() {
+    try {
+      const st = await kbFetch('/api/kb/status');
+      const avisos = [];
+      if (st.banco === 'sqlite') avisos.push('Artigos salvos em banco local (SQLite). Configure DATABASE_URL do Supabase no servidor para não perder os artigos a cada deploy.');
+      if (!st.edicao_habilitada) avisos.push('Edição desabilitada: defina KB_ADMIN_PASSWORD no servidor.');
+      kb$('kbAviso').innerHTML = avisos.map(a => `⚠️ ${esc(a)}`).join('<br>');
+      kb$('kbAviso').classList.toggle('hidden', !avisos.length);
+      kb$('kbEntrar').classList.toggle('hidden', !st.edicao_habilitada || !!KB.senha);
+    } catch (err) {
+      kb$('kbAviso').textContent = `⚠️ ${err.message}`;
+      kb$('kbAviso').classList.remove('hidden');
+    }
+  }
+
+  async function kbCarregarLista(selecionar) {
+    const params = new URLSearchParams({ q: kb$('kbBusca').value.trim(), categoria: kb$('kbCategoria').value });
+    let data;
+    try { data = await kbFetch(`/api/kb/artigos?${params}`); }
+    catch (err) { kb$('kbLista').innerHTML = `<p class="text-rose-300 p-2">${esc(err.message)}</p>`; return; }
+
+    const catSel = kb$('kbCategoria'), atualCat = catSel.value;
+    catSel.innerHTML = '<option value="">Todas as categorias</option>' +
+      data.categorias.map(c => `<option ${c === atualCat ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    kb$('kbCategoriasList').innerHTML = data.categorias.map(c => `<option value="${esc(c)}">`).join('');
+
+    if (!data.artigos.length) {
+      kb$('kbLista').innerHTML = '<p class="text-muted p-2">Nenhum artigo encontrado.</p>';
+      if (!KB.atual) kbVazio();
+      return;
+    }
+    let cat = null;
+    kb$('kbLista').innerHTML = data.artigos.map(a => {
+      const cab = a.categoria !== cat ? `<p class="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted uppercase tracking-wider">${esc(cat = a.categoria)}</p>` : '';
+      return `${cab}<button type="button" data-id="${a.id}" class="kb-item text-left px-3 py-2 rounded-lg hover:bg-panel text-slate-300 ${KB.atual?.id === a.id ? 'bg-panel text-white' : ''}">
+        ${a.origem === 'pdf' ? '📄 ' : ''}${esc(a.titulo)}</button>`;
+    }).join('');
+    kb$('kbLista').querySelectorAll('.kb-item').forEach(b => b.onclick = () => kbAbrir(Number(b.dataset.id)));
+    const alvo = selecionar ?? KB.atual?.id ?? data.artigos[0].id;
+    if (alvo && (!KB.atual || KB.atual.id !== alvo)) kbAbrir(alvo);
+  }
+
+  function kbVazio() {
+    KB.atual = null;
+    kb$('kbLeitor').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-muted py-16">
+      <p class="text-4xl">📚</p><p class="mt-3">Nenhum artigo ainda.</p>
+      <p class="text-xs mt-1">Entre como admin para criar um artigo ou importar um PDF.</p></div>`;
+  }
+
+  async function kbAbrir(id) {
+    try { kbMostrar(await kbFetch(`/api/kb/artigos/${id}`)); }
+    catch (err) { kb$('kbLeitor').innerHTML = `<p class="text-rose-300">${esc(err.message)}</p>`; }
+    kb$('kbLista').querySelectorAll('.kb-item').forEach(b =>
+      b.classList.toggle('bg-panel', Number(b.dataset.id) === id));
+  }
+
+  function kbMostrar(a) {
+    KB.atual = a;
+    kbFecharEditor();
+    const data = a.atualizado_em ? new Date(a.atualizado_em).toLocaleDateString('pt-BR') : '';
+    kb$('kbLeitor').innerHTML = `
+      <div class="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4 mb-5">
+        <div>
+          <span class="text-[11px] uppercase tracking-wider text-accent font-semibold">${esc(a.categoria)}</span>
+          <h2 class="text-2xl font-semibold text-white mt-1">${esc(a.titulo)}</h2>
+          <p class="text-xs text-muted mt-1">Atualizado em ${esc(data)}${a.autor ? ` · ${esc(a.autor)}` : ''}${a.arquivo_origem ? ` · origem: ${esc(a.arquivo_origem)}` : ''}</p>
+        </div>
+        ${KB.senha ? `<div class="flex gap-2">
+          <button type="button" id="kbEditar" class="text-sm border border-line rounded-lg px-3 py-1.5 hover:bg-panel">✏️ Editar</button>
+          <button type="button" id="kbExcluir" class="text-sm border border-rose-500/30 text-rose-300 rounded-lg px-3 py-1.5 hover:bg-rose-500/10">🗑️ Excluir</button>
+        </div>` : ''}
+      </div>
+      <article class="prose prose-invert max-w-none prose-headings:text-white prose-a:text-accent">${renderMd(a.conteudo)}</article>`;
+    kb$('kbEditar')?.addEventListener('click', () => kbAbrirEditor(a));
+    kb$('kbExcluir')?.addEventListener('click', kbExcluir);
+  }
+
+  function kbTab(tab) {
+    const prev = tab === 'visualizar';
+    document.querySelectorAll('.kb-tab').forEach(b => {
+      const ativo = b.dataset.tab === tab;
+      b.classList.toggle('bg-accent', ativo); b.classList.toggle('text-white', ativo); b.classList.toggle('text-muted', !ativo);
+    });
+    const f = kb$('kbEditor');
+    if (prev) kb$('kbPreview').innerHTML = renderMd(f.conteudo.value);
+    f.conteudo.classList.toggle('hidden', prev);
+    kb$('kbPreview').classList.toggle('hidden', !prev);
+  }
+
+  function kbAbrirEditor(artigo = null, info = '') {
+    const f = kb$('kbEditor');
+    KB.editando = artigo?.id ?? null;
+    f.titulo.value = artigo?.titulo || '';
+    f.categoria.value = artigo?.categoria || '';
+    f.conteudo.value = artigo?.conteudo || '';
+    kb$('kbEditorInfo').innerHTML = info;
+    kb$('kbEditorInfo').classList.toggle('hidden', !info);
+    kbTab('escrever');
+    kb$('kbLeitor').classList.add('hidden');
+    f.classList.remove('hidden');
+    f.titulo.focus();
+  }
+
+  function kbFecharEditor() {
+    kb$('kbEditor').classList.add('hidden');
+    kb$('kbLeitor').classList.remove('hidden');
+    KB.rascunhoPdf = null;
+  }
+
+  async function kbSalvar(e) {
+    e.preventDefault();
+    const f = e.target;
+    const body = {
+      titulo: f.titulo.value, categoria: f.categoria.value || 'Geral', conteudo: f.conteudo.value,
+      ...(KB.rascunhoPdf && KB.editando === null ? KB.rascunhoPdf : {}),
+    };
+    try {
+      const url = KB.editando === null ? '/api/kb/artigos' : `/api/kb/artigos/${KB.editando}`;
+      const r = await kbFetch(url, { method: KB.editando === null ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      KB.atual = null;
+      kbFecharEditor();
+      await kbCarregarLista(r.id);
+    } catch (err) {
+      if (err.status === 401) kbSetAdmin('');
+      alert('Erro ao salvar: ' + err.message);
+    }
+  }
+
+  async function kbExcluir() {
+    if (!KB.atual || !confirm(`Excluir o artigo "${KB.atual.titulo}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await kbFetch(`/api/kb/artigos/${KB.atual.id}`, { method: 'DELETE' });
+      KB.atual = null;
+      kbVazio();
+      await kbCarregarLista();
+    } catch (err) {
+      if (err.status === 401) kbSetAdmin('');
+      alert('Erro ao excluir: ' + err.message);
+    }
+  }
+
+  async function kbImportarPdf(file) {
+    const form = new FormData();
+    form.append('file', file);
+    const btn = kb$('kbPdfBtn');
+    btn.disabled = true; btn.textContent = '⏳ Convertendo…';
+    try {
+      const r = await kbFetch('/api/kb/pdf', { method: 'POST', body: form });
+      KB.rascunhoPdf = { origem: 'pdf', arquivo_origem: r.arquivo_origem };
+      kbAbrirEditor({ titulo: r.titulo, conteudo: r.conteudo },
+        `📄 Rascunho gerado de <b>${esc(r.arquivo_origem)}</b> (${r.paginas} página(s)). Revise o texto, ajuste título/categoria e clique em <b>Salvar artigo</b>. Tabelas e imagens do PDF não são importadas.`);
+      KB.editando = null;
+    } catch (err) {
+      if (err.status === 401) kbSetAdmin('');
+      alert('Não foi possível converter o PDF: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '📄 Importar PDF';
+      kb$('kbPdf').value = '';
+    }
+  }
+
+  function initKb() {
+    if (KB.carregado) return;
+    KB.carregado = true;
+    let t;
+    kb$('kbBusca').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => kbCarregarLista(), 300); });
+    kb$('kbCategoria').addEventListener('change', () => kbCarregarLista());
+    kb$('kbEntrar').addEventListener('click', async () => {
+      const senha = prompt('Senha de administrador da Base de Conhecimento:');
+      if (!senha) return;
+      try { await fetch('/api/kb/auth', { method: 'POST', headers: { 'X-Admin-Password': senha } }).then(r => { if (!r.ok) throw new Error(); }); kbSetAdmin(senha); }
+      catch (_) { alert('Senha inválida.'); }
+    });
+    kb$('kbSair').addEventListener('click', () => kbSetAdmin(''));
+    kb$('kbNovo').addEventListener('click', () => { KB.rascunhoPdf = null; kbAbrirEditor(); });
+    kb$('kbPdfBtn').addEventListener('click', () => kb$('kbPdf').click());
+    kb$('kbPdf').addEventListener('change', e => { if (e.target.files[0]) kbImportarPdf(e.target.files[0]); });
+    kb$('kbCancelar').addEventListener('click', () => { kbFecharEditor(); KB.atual ? kbMostrar(KB.atual) : kbVazio(); });
+    kb$('kbEditor').addEventListener('submit', kbSalvar);
+    document.querySelectorAll('.kb-tab').forEach(b => b.addEventListener('click', () => kbTab(b.dataset.tab)));
+    kbSetAdmin(KB.senha);
+    kbStatus();
+    kbCarregarLista();
   }
 
   document.querySelectorAll('[data-tool]').forEach(initTool);

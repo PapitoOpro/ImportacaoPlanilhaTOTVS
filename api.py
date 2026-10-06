@@ -19,6 +19,8 @@ from config import (COLUMN_MAP, FIELD_FILL_DEFAULTS, FIELD_RULES,
 from fiscal import REGIMES, build_regras, validate_uf, write_analise_report, write_regras
 from fiscal_db import connect as connect_fiscal_db
 from fiscal_service import FiscalService
+from kb_api import build_router as build_kb_router
+from kb_repository import KnowledgeBase, create_kb_engine
 from reader import read_client_file
 from transformer import transform
 from validator import validate
@@ -47,7 +49,23 @@ def _load_fiscal_service() -> FiscalService | None:
 
 _FISCAL = _load_fiscal_service()
 
+_KB: KnowledgeBase | None = None
+
+
+def get_kb() -> KnowledgeBase:
+    """Conecta na primeira requisição (Supabase fora do ar não derruba as conversões)."""
+    global _KB
+    if _KB is None:
+        try:
+            _KB = KnowledgeBase(create_kb_engine())
+        except Exception as exc:  # noqa: BLE001 - qualquer falha de conexão vira 503
+            logger.error(json.dumps({"event": "kb_indisponivel", "erro": str(exc)}, ensure_ascii=False))
+            raise HTTPException(status_code=503, detail="Base de Conhecimento indisponível.") from exc
+    return _KB
+
+
 app = FastAPI(title="TOTVS Food — Importação de Produtos")
+app.include_router(build_kb_router(get_kb))
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
 
 
