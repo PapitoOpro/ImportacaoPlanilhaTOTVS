@@ -11,6 +11,8 @@ from typing import Any
 import openpyxl
 import pandas as pd
 
+from fiscal_codes import normalize_cest, normalize_ncm
+from fiscal_service import FiscalService, NcmCestValidation, StatusFiscal
 from validator import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -72,6 +74,8 @@ class ResultadoRegras:
     total_produtos: int = 0
     produtos_validos: int = 0
     errors: list[ValidationError] = field(default_factory=list)
+    analise: list[dict[str, Any]] = field(default_factory=list)
+    base_fiscal_disponivel: bool = False
 
 
 def _log(level: int, event: str, **kwargs: Any) -> None:
@@ -90,8 +94,8 @@ def _norm_text(value: str) -> str:
 
 
 def _digits(value: str) -> str:
-    # "21069090.0" (Excel numérico) → "21069090"
-    value = re.sub(r"\.0+$", "", value)
+    if re.fullmatch(r"\d+\.0+", value):  # "5101.0" (Excel numérico) → "5101"
+        value = value.split(".")[0]
     return re.sub(r"\D", "", value)
 
 
@@ -107,11 +111,6 @@ def _to_float(value: str) -> float | None:
         return round(float(cleaned), 4)
     except ValueError:
         return None
-
-
-def _pad_leading_zero(digits: str, length: int) -> str:
-    """Repõe o zero à esquerda que o Excel remove (NCM/CEST nunca têm mais de 1 zero inicial)."""
-    return digits.zfill(length) if len(digits) == length - 1 else digits
 
 
 def _get(row: pd.Series, col: str) -> str:
@@ -139,13 +138,14 @@ def _parse_row(
         errors.append(ValidationError(row=linha, field=campo, value=valor, reason=motivo))
 
     ncm_raw = _get(row, _COL_NCM)
-    ncm = _pad_leading_zero(_digits(ncm_raw), 8)
-    if len(ncm) != 8:
+    ncm = normalize_ncm(ncm_raw)
+    if not ncm:
         err("NCM", ncm_raw, "NCM deve ter 8 dígitos")
 
     cest_raw = _get(row, _COL_CEST)
-    cest = _pad_leading_zero(_digits(cest_raw), 7) if _digits(cest_raw).strip("0") else ""
-    if cest and len(cest) != 7:
+    cest_informado = bool(_digits(cest_raw).strip("0"))
+    cest = normalize_cest(cest_raw) if cest_informado else ""
+    if cest_informado and not cest:
         err("CEST", cest_raw, "CEST deve ter 7 dígitos")
 
     tributo_raw = _get(row, _COL_TRIBUTO)
@@ -196,22 +196,56 @@ def _parse_row(
     ), []
 
 
-def build_regras(df: pd.DataFrame, regime: str) -> ResultadoRegras:
-    """Uma regra por combinação única de NCM + CEST + dados fiscais."""
+_STATUS_REJEITA = {StatusFiscal.INVALID_NCM: "NCM", StatusFiscal.INVALID_CEST: "CEST"}
+
+
+def _analise_item(linha: int, produto: str, v: NcmCestValidation) -> dict[str, Any]:
+    return {"linha": linha, "produto": produto, **v.to_dict()}
+
+
+def build_regras(
+    df: pd.DataFrame,
+    regime: str,
+    service: FiscalService | None = None,
+    usuario: str = "",
+    arquivo: str = "",
+    reference_date: str | None = None,
+) -> ResultadoRegras:
+    """Uma regra por combinação única de NCM + CEST + dados fiscais.
+
+    Com `service`, cada produto é validado contra a base oficial (NCM/CEST/NCM×CEST):
+    NCM/CEST inexistentes rejeitam a linha; demais situações (divergência, múltiplos CESTs)
+    são apenas sinalizadas — o CEST nunca é preenchido automaticamente."""
     if regime not in REGIMES:
         raise ValueError(f"Regime inválido: {regime}")
 
     if _COL_NCM not in df.columns:
         raise ValueError("Coluna NCM não encontrada na planilha do cliente")
 
-    result = ResultadoRegras()
+    result = ResultadoRegras(base_fiscal_disponivel=service is not None)
     vistos: dict[RegraFiscal, None] = {}
 
     for idx, row in df.iterrows():
-        if not _get(row, _COL_NCM) and not _get(row, "NOME PRODUTO"):
+        produto = _get(row, "NOME PRODUTO")
+        if not _get(row, _COL_NCM) and not produto:
             continue
         result.total_produtos += 1
-        regra, errors = _parse_row(row, int(idx) + _FIRST_DATA_ROW, regime)
+        linha = int(idx) + _FIRST_DATA_ROW
+        regra, errors = _parse_row(row, linha, regime)
+
+        campos_com_erro = {e.field for e in errors}
+        if service is not None and not campos_com_erro & {"NCM", "CEST"}:
+            validacao = service.validate_ncm_cest(_get(row, _COL_NCM), _get(row, _COL_CEST), reference_date)
+            service.audit(validacao, usuario=usuario, arquivo=arquivo, produto=produto)
+            result.analise.append(_analise_item(linha, produto, validacao))
+            campo = _STATUS_REJEITA.get(validacao.status)
+            if campo:
+                errors.append(ValidationError(
+                    row=linha, field=campo,
+                    value=validacao.ncm if campo == "NCM" else validacao.cest,
+                    reason=" ".join(m for m in validacao.messages if "Verifique" not in m),
+                ))
+
         if errors:
             result.errors.extend(errors)
             continue
@@ -303,3 +337,43 @@ def validate_uf(uf: str) -> str:
     if uf not in _UF_VALIDAS:
         raise ValueError(f"UF inválida: {uf or '(vazia)'}")
     return uf
+
+
+_STATUS_LABEL: dict[str, str] = {
+    "VALID":             "NCM e CEST válidos e relacionados",
+    "NO_CEST":           "NCM válido, sem CEST relacionado",
+    "INVALID_NCM":       "NCM inválido",
+    "INVALID_CEST":      "CEST inválido",
+    "NCM_CEST_MISMATCH": "CEST sem relação com o NCM",
+    "MULTIPLE_CEST":     "Múltiplos CESTs possíveis",
+    "NEEDS_REVIEW":      "Necessita revisão",
+}
+
+
+def write_analise_report(analise: list[dict[str, Any]], output_path: Path) -> None:
+    """Relatório por produto da validação NCM/CEST contra a base oficial."""
+    rows = [
+        {
+            "Linha (cliente)":        a["linha"],
+            "Produto":                a["produto"],
+            "NCM":                    a["ncm_formatted"],
+            "Descrição NCM (oficial)": a["ncm_description"] or "",
+            "CEST informado":         a["cest_formatted"],
+            "Descrição CEST (oficial)": a["cest_description"] or "",
+            "Status":                 a["status"],
+            "Situação":               _STATUS_LABEL.get(a["status"], a["status"]),
+            "CESTs relacionados ao NCM": "\n".join(
+                f"{c['code_formatted']} - {c['description']}" for c in a["related_cests"]
+            ),
+            "Observações":            " ".join(a["messages"]),
+            "Base consultada":        " / ".join(a["versions"].values()),
+        }
+        for a in analise
+    ]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        pd.DataFrame(rows).to_excel(writer, index=False, sheet_name="Analise Fiscal")
+        ws = writer.sheets["Analise Fiscal"]
+        for col, width in zip("ABCDEFGHIJK", (10, 35, 12, 50, 12, 40, 18, 30, 60, 60, 40)):
+            ws.column_dimensions[col].width = width
+        ws.freeze_panes = "A2"

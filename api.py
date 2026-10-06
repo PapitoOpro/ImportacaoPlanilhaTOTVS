@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import base64
+import json
+import logging
 import shutil
 import sys
 import tempfile
+from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -13,7 +16,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from config import (COLUMN_MAP, FIELD_FILL_DEFAULTS, FIELD_RULES,
                     REQUIRED_FIELDS, TEMPLATE_COLUMNS, TEMPLATE_DEFAULTS)
-from fiscal import REGIMES, build_regras, validate_uf, write_regras
+from fiscal import REGIMES, build_regras, validate_uf, write_analise_report, write_regras
+from fiscal_db import connect as connect_fiscal_db
+from fiscal_service import FiscalService
 from reader import read_client_file
 from transformer import transform
 from validator import validate
@@ -23,6 +28,24 @@ _BASE = Path(__file__).parent
 _TEMPLATE = _BASE / "PlanilhaImportaçãoLojaComValidação.xlsm"
 _TEMPLATE_REGRAS = _BASE / "ImportacaoRegraNCMDadosFiscais.xlsx"
 _EXTENSOES = (".xls", ".xlsx", ".xlsm", ".csv")
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("api")
+
+
+def _load_fiscal_service() -> FiscalService | None:
+    try:
+        service = FiscalService(connect_fiscal_db(readonly=True))
+    except (FileNotFoundError, OSError) as exc:
+        logger.warning(json.dumps({"event": "base_fiscal_indisponivel", "erro": str(exc)}, ensure_ascii=False))
+        return None
+    if not service.has_data():
+        logger.warning(json.dumps({"event": "base_fiscal_vazia"}, ensure_ascii=False))
+        return None
+    return service
+
+
+_FISCAL = _load_fiscal_service()
 
 app = FastAPI(title="TOTVS Food — Importação de Produtos")
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
@@ -91,6 +114,7 @@ async def processar_regras_ncm(
     regime: str = Form(...),
     uf: str = Form("SP"),
     numero_loja: str = Form(""),
+    usuario: str = Form(""),
 ):
     suffix = _check_extensao(file)
     if regime not in REGIMES:
@@ -109,7 +133,11 @@ async def processar_regras_ncm(
 
         df = read_client_file(input_path)
         try:
-            result = build_regras(df, regime)
+            result = build_regras(
+                df, regime, service=_FISCAL,
+                usuario=usuario.strip()[:100] or "anonimo",
+                arquivo=Path(file.filename or "").name[:200],
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -123,7 +151,21 @@ async def processar_regras_ncm(
             write_error_report(result.errors, error_path)
             arquivo_erros_b64 = base64.b64encode(error_path.read_bytes()).decode()
 
+        arquivo_analise_b64 = None
+        if result.analise:
+            analise_path = work_dir / "analise_fiscal.xlsx"
+            write_analise_report(result.analise, analise_path)
+            arquivo_analise_b64 = base64.b64encode(analise_path.read_bytes()).decode()
+
+        resumo_fiscal: dict[str, int] = {}
+        for item in result.analise:
+            resumo_fiscal[item["status"]] = resumo_fiscal.get(item["status"], 0) + 1
+
         return JSONResponse({
+            "base_fiscal":      result.base_fiscal_disponivel,
+            "resumo_fiscal":    resumo_fiscal,
+            "analise":          result.analise,
+            "arquivo_analise":  arquivo_analise_b64,
             "stats": {
                 "total":      result.total_produtos,
                 "exportados": result.produtos_validos,
@@ -139,3 +181,33 @@ async def processar_regras_ncm(
         })
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def _require_fiscal() -> FiscalService:
+    if _FISCAL is None:
+        raise HTTPException(status_code=503, detail="Base fiscal não carregada. Execute src/fiscal_import.py.")
+    return _FISCAL
+
+
+def _parse_data(data: str | None) -> str | None:
+    if not data:
+        return None
+    try:
+        return date.fromisoformat(data).isoformat()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Data inválida (use AAAA-MM-DD)") from exc
+
+
+@app.get("/api/fiscal/ncm/{ncm}")
+async def consultar_ncm(ncm: str, data: str | None = None):
+    return _require_fiscal().validate_ncm(ncm[:20], _parse_data(data))
+
+
+@app.get("/api/fiscal/cest/{cest}")
+async def consultar_cest(cest: str, data: str | None = None):
+    return _require_fiscal().validate_cest(cest[:20], _parse_data(data))
+
+
+@app.get("/api/fiscal/validar")
+async def validar_ncm_cest(ncm: str, cest: str = "", data: str | None = None):
+    return _require_fiscal().validate_ncm_cest(ncm[:20], cest[:20], _parse_data(data)).to_dict()
