@@ -287,21 +287,53 @@
 <!-- ===================== AVISO DE ENTRADA ===================== -->
 <div id="avisoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
      role="dialog" aria-modal="true" aria-labelledby="avisoTitulo">
-  <div class="fade-in w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-2xl">
-    <div class="flex items-center gap-3 px-6 pt-6">
-      <div class="w-10 h-10 shrink-0 rounded-full bg-amber-500/15 text-amber-300 flex items-center justify-center text-lg">📢</div>
-      <div>
-        <p class="text-[11px] uppercase tracking-wider text-amber-300 font-semibold">Aviso importante</p>
-        <h2 id="avisoTitulo" class="text-lg font-semibold text-white">Reforma Tributária — PIS/COFINS</h2>
+  <div class="fade-in w-full max-w-xl max-h-[90vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-2xl">
+    <!-- Cabeçalho -->
+    <div class="px-6 pt-6 pb-5 border-b border-line bg-gradient-to-br from-amber-500/10 to-transparent rounded-t-2xl">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 shrink-0 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center text-xl">📢</div>
+          <div>
+            <p class="text-[11px] uppercase tracking-wider text-amber-300 font-semibold">Aviso importante</p>
+            <h2 id="avisoTitulo" class="text-lg font-semibold text-white leading-tight">Reforma Tributária — PIS/COFINS</h2>
+          </div>
+        </div>
+        <span class="shrink-0 text-[11px] font-medium text-amber-200 border border-amber-500/40 bg-amber-500/10 rounded-full px-3 py-1">A partir de 01/01/2027</span>
       </div>
+      <p class="text-xs text-muted mt-3">Emenda Constitucional nº 132/2023</p>
     </div>
-    <div class="px-6 py-5 flex flex-col gap-3 text-sm text-slate-300 leading-relaxed">
-      <p>Devido a Reforma Tributária (Emenda Constitucional nº 132/2023), as contribuições PIS/COFINS serão extintas a partir de <b class="text-white">1º de janeiro de 2027</b>, dando início ao período de transição para os novos tributos.</p>
-      <p>Caso sua empresa possua boletos ou faturas emitidos em 2026, com vencimento a partir de 2027 e previsão de retenção na fonte desses tributos, o tratamento fiscal e o valor líquido do título poderão sofrer adequações. Isso ocorre porque o fato gerador e as regras de retenção consideram a data do efetivo pagamento (liquidação).</p>
-      <p>Acompanhamos as regulamentações para garantir a exatidão fiscal dos documentos.</p>
-      <p class="bg-accent/10 border border-accent/30 rounded-lg p-3 text-blue-200"><b>Nenhuma ação é necessária no momento.</b> Recomendamos apenas atenção da equipe financeira aos valores de liquidação dos títulos a partir de janeiro de 2027.</p>
+
+    <!-- Conteúdo -->
+    <div class="px-6 py-5 flex flex-col gap-4 text-sm text-slate-300 leading-relaxed">
+      <div class="flex gap-3">
+        <span class="w-8 h-8 shrink-0 rounded-lg bg-panel border border-line flex items-center justify-center">📅</span>
+        <div>
+          <p class="font-semibold text-white">O que muda</p>
+          <p class="mt-1">As contribuições <b class="text-white">PIS/COFINS serão extintas a partir de 1º de janeiro de 2027</b>, dando início ao período de transição para os novos tributos.</p>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <span class="w-8 h-8 shrink-0 rounded-lg bg-panel border border-line flex items-center justify-center">🧾</span>
+        <div>
+          <p class="font-semibold text-white">Boletos e faturas emitidos em 2026</p>
+          <p class="mt-1">Com <b class="text-white">vencimento a partir de 2027</b> e previsão de retenção na fonte desses tributos, o tratamento fiscal e o valor líquido do título poderão sofrer adequações.</p>
+          <p class="mt-2 text-xs text-muted">Isso ocorre porque o fato gerador e as regras de retenção consideram a data do efetivo pagamento (liquidação).</p>
+        </div>
+      </div>
+
+      <div class="flex gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+        <span class="w-8 h-8 shrink-0 rounded-lg bg-emerald-500/20 flex items-center justify-center">✅</span>
+        <div>
+          <p class="font-semibold text-emerald-300">Nenhuma ação é necessária no momento</p>
+          <p class="mt-1 text-emerald-100/80">Recomendamos apenas atenção da equipe financeira aos valores de liquidação dos títulos a partir de janeiro de 2027.</p>
+        </div>
+      </div>
+
+      <p class="text-xs text-muted text-center">Acompanhamos as regulamentações para garantir a exatidão fiscal dos documentos.</p>
     </div>
-    <div class="flex flex-wrap items-center justify-between gap-3 px-6 pb-6">
+
+    <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-line">
       <label class="flex items-center gap-2 text-xs text-muted cursor-pointer select-none">
         <input id="avisoNaoMostrar" type="checkbox" class="accent-[#487fff]" /> Não mostrar novamente
       </label>
