@@ -188,13 +188,52 @@
             <ol class="mt-4 flex flex-col gap-3 text-muted">
               <li><span class="step">1</span> Use a mesma planilha de cadastro de produtos do cliente.</li>
               <li><span class="step">2</span> Uma regra é gerada por combinação única de NCM, CEST e dados fiscais.</li>
-              <li><span class="step">3</span> NCM/CEST são validados nas tabelas oficiais. NCM ou CEST inexistente rejeita o produto.</li>
-              <li><span class="step">4</span> O CEST nunca é preenchido automaticamente.</li>
+              <li><span class="step">3</span> CEST inexistente rejeita o produto. NCM nunca bloqueia: se o TOTVS não aceitar, vira aviso.</li>
+              <li><span class="step">4</span> CEST ausente, obrigatório (ICMS-ST) ou recusado pelo TOTVS vira sugestão; você confirma antes de gerar.</li>
             </ol>
           </div>
         </div>
         <div data-slot="results"></div>
         <div data-slot="fiscal" class="hidden mt-4 fade-in"></div>
+        <div id="aprender-totvs" class="mt-4 bg-card border border-line rounded-2xl p-6 text-sm">
+          <p class="font-semibold text-white">Importação recusada pelo TOTVS?</p>
+          <p class="text-muted mt-1">Envie o ErrosImportacao.txt e a planilha que foi importada. Os NCM/CEST recusados passam a ser barrados nas próximas planilhas.</p>
+          <div class="mt-4 grid sm:grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1 text-muted">ErrosImportacao.txt
+              <input type="file" accept=".txt" class="at-erros text-slate-200 text-xs">
+            </label>
+            <label class="flex flex-col gap-1 text-muted">Planilha importada (.xlsx)
+              <input type="file" accept=".xlsx,.xlsm" class="at-planilha text-slate-200 text-xs">
+            </label>
+          </div>
+          <button type="button" class="at-enviar mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-lg">Registrar recusas</button>
+          <p class="at-msg mt-3 text-muted"></p>
+        </div>
+        <script>
+          (() => {
+            const box = document.getElementById('aprender-totvs');
+            const msg = box.querySelector('.at-msg');
+            box.querySelector('.at-enviar').onclick = async () => {
+              const erros = box.querySelector('.at-erros').files[0];
+              const planilha = box.querySelector('.at-planilha').files[0];
+              if (!erros || !planilha) { msg.textContent = 'Selecione os dois arquivos.'; return; }
+              const form = new FormData();
+              form.append('erros', erros);
+              form.append('planilha', planilha);
+              msg.textContent = 'Enviando...';
+              try {
+                const res = await fetch('/api/fiscal/recusados', { method: 'POST', body: form });
+                const data = await res.json();
+                if (!res.ok) { msg.textContent = 'Erro: ' + (data.detail || 'falha ao registrar'); return; }
+                msg.textContent = data.recusados.length
+                  ? 'Registrado: ' + data.recusados.map(r => r.tipo + ' ' + r.codigo).join(', ')
+                  : 'Nenhum NCM/CEST inválido encontrado no arquivo de erros.';
+              } catch (e) {
+                msg.textContent = 'Erro de conexão. Tente novamente.';
+              }
+            };
+          })();
+        </script>
       </section>
 
       <!-- ===================== CONSULTA ===================== -->
@@ -404,6 +443,22 @@
               </tr>
             </thead>
             <tbody class="correcoes-body divide-y divide-line"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="avisos-container hidden lg:col-span-2 bg-card border border-amber-500/30 rounded-2xl p-6">
+        <p class="font-semibold text-amber-300 mb-1">⚠️ NCM que vai dar erro na importação</p>
+        <p class="text-muted text-sm mb-4">Estes NCMs não são aceitos pelo TOTVS (fora da tabela MDIC do sistema ou recusados antes). As linhas continuam na planilha, mas a importação vai acusar erro até o NCM ser cadastrado no TOTVS.</p>
+        <div class="overflow-x-auto max-h-[300px] overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="text-muted text-xs uppercase sticky top-0 bg-card">
+              <tr class="border-b border-line">
+                <th class="py-3 px-3 text-left font-medium">Linha</th>
+                <th class="py-3 px-3 text-left font-medium">Produto</th>
+                <th class="py-3 px-3 text-left font-medium">NCM</th>
+              </tr>
+            </thead>
+            <tbody class="avisos-body divide-y divide-line"></tbody>
           </table>
         </div>
       </div>
@@ -695,45 +750,59 @@
     $('.btn-erros').onclick = () => baixarB64(errosB64, 'erros.xlsx', MIME_XLSX);
     $('.stats').classList.add(cfg.stats.length === 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3');
 
-    // Pergunta se as sugestões devem ser usadas. Resolve true (aplicar), false (não aplicar) ou null (cancelar).
-    const perguntarSugestoes = correcoes => new Promise(resolve => {
+    // Pergunta antes de gerar. Resolve { aplicar, excluir } (booleanos) ou null (cancelar).
+    const perguntarAntesDeGerar = (correcoes, avisos) => new Promise(resolve => {
       const overlay = document.createElement('div');
       overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4';
+      const th = t => `<th class="py-2 px-3 text-left font-medium">${t}</th>`;
+      const secCorrecoes = correcoes.length ? `
+        <label class="flex items-start gap-3 mt-2 text-white font-medium cursor-pointer">
+          <input type="checkbox" class="chk-aplicar mt-1" checked>
+          <span>Aplicar as ${correcoes.length} sugestões de CEST
+            <span class="block text-muted text-sm font-normal">Desmarcado, essas linhas são rejeitadas.</span></span>
+        </label>
+        <table class="w-full text-sm mt-2">
+          <thead class="text-muted text-xs uppercase"><tr class="border-b border-line">${['Linha', 'Campo', 'De', 'Para', 'Motivo'].map(th).join('')}</tr></thead>
+          <tbody class="divide-y divide-line">${correcoes.map(c => `
+            <tr>
+              <td class="py-2 px-3 text-muted">${esc(c.linha)}</td>
+              <td class="py-2 px-3 text-slate-200 font-medium">${esc(c.campo)}</td>
+              <td class="py-2 px-3 text-rose-300">${esc(c.de) || '—'}</td>
+              <td class="py-2 px-3 text-emerald-300">${esc(c.para)}</td>
+              <td class="py-2 px-3 text-muted">${esc(c.motivo)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : '';
+      const secAvisos = avisos.length ? `
+        <label class="flex items-start gap-3 mt-6 text-amber-300 font-medium cursor-pointer">
+          <input type="checkbox" class="chk-excluir mt-1" checked>
+          <span>Gerar sem os ${avisos.length} produtos com NCM que o TOTVS não aceita
+            <span class="block text-muted text-sm font-normal">Esses NCMs vão dar erro na importação. Separados, o restante importa normalmente; eles saem na lista de rejeitados para tratar à parte. Desmarcado, eles ficam na planilha e a importação acusa erro.</span></span>
+        </label>
+        <table class="w-full text-sm mt-2">
+          <thead class="text-muted text-xs uppercase"><tr class="border-b border-line">${['Linha', 'Produto', 'NCM'].map(th).join('')}</tr></thead>
+          <tbody class="divide-y divide-line">${avisos.map(a => `
+            <tr>
+              <td class="py-2 px-3 text-muted">${esc(a.linha)}</td>
+              <td class="py-2 px-3 text-slate-200">${esc(a.produto)}</td>
+              <td class="py-2 px-3 text-amber-300 font-medium">${esc(a.valor)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : '';
       overlay.innerHTML = `
         <div class="bg-card border border-line rounded-2xl p-6 w-full max-w-4xl max-h-[85vh] flex flex-col">
-          <p class="font-semibold text-white text-lg">Sugestões de correção (${correcoes.length})</p>
-          <p class="text-muted text-sm mt-1 mb-4">Deseja usar as sugestões abaixo para gerar a planilha? Sem elas, essas linhas serão rejeitadas.</p>
-          <div class="overflow-auto flex-1">
-            <table class="w-full text-sm">
-              <thead class="text-muted text-xs uppercase sticky top-0 bg-card">
-                <tr class="border-b border-line">
-                  <th class="py-2 px-3 text-left font-medium">Linha</th>
-                  <th class="py-2 px-3 text-left font-medium">Campo</th>
-                  <th class="py-2 px-3 text-left font-medium">De</th>
-                  <th class="py-2 px-3 text-left font-medium">Para</th>
-                  <th class="py-2 px-3 text-left font-medium">Motivo</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-line">${correcoes.map(c => `
-                <tr>
-                  <td class="py-2 px-3 text-muted">${esc(c.linha)}</td>
-                  <td class="py-2 px-3 text-slate-200 font-medium">${esc(c.campo)}</td>
-                  <td class="py-2 px-3 text-rose-300">${esc(c.de) || '—'}</td>
-                  <td class="py-2 px-3 text-emerald-300">${esc(c.para)}</td>
-                  <td class="py-2 px-3 text-muted">${esc(c.motivo)}</td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
+          <p class="font-semibold text-white text-lg">Antes de gerar a planilha</p>
+          <div class="overflow-auto flex-1 mt-2">${secCorrecoes}${secAvisos}</div>
           <div class="flex flex-wrap gap-3 justify-end mt-5">
-            <button type="button" data-r="null" class="text-muted hover:text-white text-sm px-4 py-2">Cancelar</button>
-            <button type="button" data-r="false" class="border border-line text-slate-200 hover:bg-panel text-sm px-4 py-2 rounded-lg">Gerar sem aplicar</button>
-            <button type="button" data-r="true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2 rounded-lg">Aplicar sugestões e gerar</button>
+            <button type="button" class="btn-cancelar text-muted hover:text-white text-sm px-4 py-2">Cancelar</button>
+            <button type="button" class="btn-gerar bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2 rounded-lg">Gerar planilha</button>
           </div>
         </div>`;
-      overlay.querySelectorAll('button[data-r]').forEach(b => b.onclick = () => {
-        overlay.remove();
-        resolve(JSON.parse(b.dataset.r));
+      const fechar = valor => { overlay.remove(); resolve(valor); };
+      overlay.querySelector('.btn-cancelar').onclick = () => fechar(null);
+      overlay.querySelector('.btn-gerar').onclick = () => fechar({
+        aplicar: overlay.querySelector('.chk-aplicar')?.checked ?? true,
+        excluir: overlay.querySelector('.chk-excluir')?.checked ?? false,
       });
       document.body.appendChild(overlay);
     });
@@ -762,12 +831,14 @@
             show('.btn-processar', true);
             return;
           }
-          if (previa.data.correcoes && previa.data.correcoes.length > 0) {
+          const correcoes = previa.data.correcoes || [];
+          const avisos = previa.data.avisos || [];
+          if (correcoes.length || avisos.length) {
             show('.loading', false);
-            const aplicar = await perguntarSugestoes(previa.data.correcoes);
-            if (aplicar === null) { show('.btn-processar', true); return; }
+            const escolha = await perguntarAntesDeGerar(correcoes, avisos);
+            if (escolha === null) { show('.btn-processar', true); return; }
             show('.loading', true);
-            extra = { aplicar_sugestoes: aplicar };
+            extra = { aplicar_sugestoes: escolha.aplicar, excluir_ncm_totvs: escolha.excluir };
           }
         }
 
@@ -804,6 +875,15 @@
             <td class="py-3 px-3 text-rose-300">${esc(c.de)}</td>
             <td class="py-3 px-3 text-emerald-300">${esc(c.para)}</td>
             <td class="py-3 px-3 text-muted">${esc(c.motivo)}</td>
+          </tr>`).join('') : '';
+
+        const temAvisos = data.avisos && data.avisos.length > 0;
+        show('.avisos-container', !!temAvisos);
+        $('.avisos-body').innerHTML = temAvisos ? data.avisos.map(a => `
+          <tr class="hover:bg-panel/60">
+            <td class="py-3 px-3 text-muted">${esc(a.linha)}</td>
+            <td class="py-3 px-3 text-slate-200">${esc(a.produto)}</td>
+            <td class="py-3 px-3 text-amber-300 font-medium">${esc(a.valor)}</td>
           </tr>`).join('') : '';
 
         show('.results', true);

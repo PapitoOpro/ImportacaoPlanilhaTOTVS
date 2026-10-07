@@ -76,6 +76,7 @@ class ResultadoRegras:
     errors: list[ValidationError] = field(default_factory=list)
     analise: list[dict[str, Any]] = field(default_factory=list)
     correcoes: list[dict[str, Any]] = field(default_factory=list)
+    avisos: list[dict[str, Any]] = field(default_factory=list)
     base_fiscal_disponivel: bool = False
 
 
@@ -197,7 +198,8 @@ def _parse_row(
     ), []
 
 
-_STATUS_REJEITA = {StatusFiscal.INVALID_NCM: "NCM", StatusFiscal.INVALID_CEST: "CEST"}
+# NCM nunca bloqueia: o que o TOTVS não aceitar vira aviso (ver _aviso_ncm_totvs).
+_STATUS_REJEITA = {StatusFiscal.INVALID_CEST: "CEST"}
 
 
 def _analise_item(linha: int, produto: str, v: NcmCestValidation) -> dict[str, Any]:
@@ -261,16 +263,23 @@ def _candidatos_cest(service: FiscalService, ncm: str, ref: str | None, usar_tot
     return [c.code for c in service.get_cests_by_ncm(ncm, ref)]
 
 
+def _aviso_ncm_totvs(service: FiscalService, linha: int, produto: str, regra: RegraFiscal) -> dict[str, Any] | None:
+    """NCM que o TOTVS não aceita (fora da tabela MDIC do sistema ou recusado numa importação real).
+    Só avisa: a linha continua na planilha, mas a importação vai acusar erro até o NCM ser cadastrado."""
+    if service.in_totvs_catalog("NCM", regra.ncm):
+        return None
+    return {"linha": linha, "produto": produto, "campo": "NCM", "valor": regra.ncm,
+            "motivo": "NCM não aceito pelo TOTVS (fora da tabela MDIC do sistema ou recusado em importação anterior): "
+                      "vai dar erro na importação. Cadastre o NCM no TOTVS antes de importar."}
+
+
 def _aplicar_catalogo_totvs(
     service: FiscalService, linha: int, produto: str, regra: RegraFiscal, reference_date: str | None
 ) -> tuple[RegraFiscal, list[ValidationError], dict[str, Any] | None]:
     """NCM/CEST válidos oficialmente, mas ausentes (ou inativos) no cadastro do TOTVS.
 
-    NCM ausente: rejeita. CEST ausente: troca se houver 1 CEST oficial do NCM aceito pelo TOTVS
-    ou se a descrição do produto destaca um deles; senão rejeita e lista as opções."""
-    if not service.in_totvs_catalog("NCM", regra.ncm):
-        return regra, [ValidationError(row=linha, field="NCM", value=regra.ncm,
-                                       reason="NCM não cadastrado no TOTVS — cadastre-o antes de importar")], None
+    CEST ausente: troca se houver 1 CEST oficial do NCM aceito pelo TOTVS ou se a descrição do
+    produto destaca um deles; senão rejeita e lista as opções. O NCM nunca é barrado aqui."""
     if not regra.cest or service.in_totvs_catalog("CEST", regra.cest):
         return regra, [], None
 
@@ -320,6 +329,7 @@ def build_regras(
     arquivo: str = "",
     reference_date: str | None = None,
     aplicar_sugestoes: bool = True,
+    excluir_ncm_totvs: bool = False,
 ) -> ResultadoRegras:
     """Uma regra por combinação única de NCM + CEST + dados fiscais.
 
@@ -354,16 +364,27 @@ def build_regras(
             if campo:
                 errors.append(ValidationError(
                     row=linha, field=campo,
-                    value=validacao.ncm if campo == "NCM" else validacao.cest,
+                    value=validacao.cest,
                     reason=" ".join(m for m in validacao.messages if "Verifique" not in m),
                 ))
 
         if regra and not errors and service is not None:
-            etapas = []
             if totvs_ativo:
+                aviso = _aviso_ncm_totvs(service, linha, produto, regra)
+                if aviso and excluir_ncm_totvs:
+                    errors.append(ValidationError(
+                        row=linha, field="NCM", value=regra.ncm,
+                        reason="NCM não aceito pelo TOTVS: produto separado da planilha para não derrubar a "
+                               "importação. Cadastre o NCM no TOTVS e importe este produto à parte.",
+                    ))
+                elif aviso:
+                    result.avisos.append(aviso)
+            etapas = []
+            if totvs_ativo and not errors:
                 etapas.append(lambda r: _aplicar_catalogo_totvs(service, linha, produto, r, reference_date))
-            etapas.append(
-                lambda r: _aplicar_obrigatoriedade(service, linha, produto, r, regime, reference_date, totvs_ativo))
+            if not errors:
+                etapas.append(
+                    lambda r: _aplicar_obrigatoriedade(service, linha, produto, r, regime, reference_date, totvs_ativo))
             for etapa in etapas:
                 regra_etapa, errors_etapa, correcao = etapa(regra)
                 errors.extend(errors_etapa)

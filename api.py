@@ -22,6 +22,7 @@ from fiscal_service import FiscalService
 from kb_api import build_router as build_kb_router
 from kb_repository import KnowledgeBase, create_kb_engine
 from reader import read_client_file
+from totvs_catalog import registrar_recusados
 from transformer import transform
 from validator import validate
 from writer import write_error_report, write_output
@@ -135,6 +136,7 @@ async def processar_regras_ncm(
     usuario: str = Form(""),
     previa: bool = Form(False),
     aplicar_sugestoes: bool = Form(True),
+    excluir_ncm_totvs: bool = Form(False),
 ):
     suffix = _check_extensao(file)
     if regime not in REGIMES:
@@ -158,12 +160,13 @@ async def processar_regras_ncm(
                 usuario=usuario.strip()[:100] or "anonimo",
                 arquivo=Path(file.filename or "").name[:200],
                 aplicar_sugestoes=aplicar_sugestoes or previa,
+                excluir_ncm_totvs=excluir_ncm_totvs and not previa,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         if previa:  # só as sugestões; a planilha é gerada após a confirmação do usuário
-            return JSONResponse({"previa": True, "correcoes": result.correcoes})
+            return JSONResponse({"previa": True, "correcoes": result.correcoes, "avisos": result.avisos})
 
         output_path = work_dir / "regras.xlsx"
         write_regras(result.regras, output_path, _TEMPLATE_REGRAS, regime, uf, numero_loja.strip())
@@ -190,6 +193,7 @@ async def processar_regras_ncm(
             "resumo_fiscal":    resumo_fiscal,
             "analise":          result.analise,
             "correcoes":        result.correcoes,
+            "avisos":           result.avisos,
             "arquivo_analise":  arquivo_analise_b64,
             "stats": {
                 "total":      result.total_produtos,
@@ -204,6 +208,40 @@ async def processar_regras_ncm(
             "arquivo":       arquivo_b64,
             "arquivo_erros": arquivo_erros_b64,
         })
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+_MAX_ERROS_BYTES = 2 * 1024 * 1024
+_MAX_PLANILHA_BYTES = 20 * 1024 * 1024
+
+
+@app.post("/api/fiscal/recusados")
+async def registrar_recusados_totvs(erros: UploadFile = File(...), planilha: UploadFile = File(...)):
+    """Aprende com o ErrosImportacao.txt do TOTVS: NCM/CEST recusados passam a ser barrados."""
+    if not (erros.filename or "").lower().endswith(".txt"):
+        raise HTTPException(status_code=400, detail="O arquivo de erros deve ser o ErrosImportacao.txt")
+    suffix = Path(planilha.filename or "").suffix.lower()
+    if suffix not in (".xlsx", ".xlsm"):
+        raise HTTPException(status_code=400, detail="A planilha importada deve ser .xlsx ou .xlsm")
+
+    texto_bytes, planilha_bytes = await erros.read(), await planilha.read()
+    if len(texto_bytes) > _MAX_ERROS_BYTES or len(planilha_bytes) > _MAX_PLANILHA_BYTES:
+        raise HTTPException(status_code=413, detail="Arquivo muito grande")
+
+    work_dir = Path(tempfile.mkdtemp())
+    try:
+        planilha_path = work_dir / f"planilha{suffix}"
+        planilha_path.write_bytes(planilha_bytes)
+        conn = connect_fiscal_db()
+        try:
+            recusados = registrar_recusados(conn, texto_bytes.decode("utf-8", errors="replace"), planilha_path)
+        except Exception as exc:  # arquivo enviado pelo usuário: qualquer falha de leitura vira 400
+            logger.warning(json.dumps({"event": "recusados_totvs_falhou", "erro": str(exc)}, ensure_ascii=False))
+            raise HTTPException(status_code=400, detail="Não foi possível ler a planilha/erros enviados") from exc
+        finally:
+            conn.close()
+        return {"recusados": [{"tipo": t, "codigo": c} for t, c in recusados]}
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
 

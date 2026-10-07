@@ -269,7 +269,7 @@ def _planilha(rows: list[dict[str, str]]) -> pd.DataFrame:
     return pd.DataFrame([{**base, **r} for r in rows])
 
 
-def test_conversao_rejeita_ncm_invalido_e_sinaliza_multiplos(svc: FiscalService) -> None:
+def test_conversao_nao_bloqueia_ncm_e_sinaliza_multiplos(svc: FiscalService) -> None:
     df = _planilha([
         {"NOME PRODUTO": "Válido", "NCM": "9901.10.00", "CEST": "99.001.00"},
         {"NOME PRODUTO": "NCM inexistente", "NCM": "9901.99.99"},
@@ -281,23 +281,23 @@ def test_conversao_rejeita_ncm_invalido_e_sinaliza_multiplos(svc: FiscalService)
     status = {a["produto"]: a["status"] for a in result.analise}
     assert status == {"Válido": "VALID", "NCM inexistente": "INVALID_NCM",
                       "Múltiplos": "MULTIPLE_CEST", "Divergente": "NCM_CEST_MISMATCH"}
-    assert result.produtos_validos == 3
-    assert [e.field for e in result.errors] == ["NCM"]
+    assert result.produtos_validos == 4  # NCM nunca bloqueia
+    assert result.errors == []
     # CEST nunca é preenchido automaticamente
     assert {r.cest for r in result.regras if r.ncm == "99012000"} == {""}
 
 
 # ----------------------------------------------------------------------------- catálogo TOTVS
 
-def test_catalogo_totvs_barra_cest_ausente(tmp_path: Path) -> None:
+def test_catalogo_totvs_importa_cest_e_ignora_aba_ncm(tmp_path: Path) -> None:
     import openpyxl
     from totvs_catalog import import_catalog
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "NCM"
+    ws.title = "NCM"  # aba IBPT do export: não é a lista de NCMs do TOTVS
     ws.append(["Id", "Codigo", "Descricao", "Inativo"])
-    ws.append([1, 9901100, '"Item"', 0])  # zero à esquerda perdido pelo Excel
+    ws.append([1, 9901100, '"Item"', 0])
     ws = wb.create_sheet("CEST")
     ws.append(["Id", "Cod_CEST", "Descricao", "Inativo"])
     ws.append([1, 9900100, "Cest", 0])
@@ -306,14 +306,27 @@ def test_catalogo_totvs_barra_cest_ausente(tmp_path: Path) -> None:
     wb.save(path)
 
     conn = connect_memory()
-    assert import_catalog(conn, path) == {"ncm": 1, "cest": 2}
+    assert import_catalog(conn, path) == {"cest": 2}
     svc = FiscalService(conn)
     assert svc.has_totvs_catalog()
-    assert svc.in_totvs_catalog("NCM", "00990110") is False  # zfill(8) de 9901100 = 09901100
-    assert svc.in_totvs_catalog("NCM", "09901100")
+    assert svc.in_totvs_catalog("NCM", "09901100")  # sem tabela MDIC carregada: nenhum NCM é barrado
     assert svc.in_totvs_catalog("CEST", "9900100")
     assert not svc.in_totvs_catalog("CEST", "9900200")  # inativo
     assert not svc.in_totvs_catalog("CEST", "9900300")  # ausente
+
+
+def test_tabela_mdic_define_quais_ncm_o_totvs_aceita(tmp_path: Path) -> None:
+    from totvs_catalog import import_ncm_mdic
+
+    csv = tmp_path / "mdic.csv"
+    csv.write_text("Id;CodigoNCM;Descricao\n1;22021000;Refrigerante\n2;2012010;Carne\n3;2202;Posicao\n",
+                   encoding="utf-8")
+    conn = connect_memory()
+    assert import_ncm_mdic(conn, csv) == 2  # 4 dígitos (posição) é ignorado; 7 dígitos recebe o zero
+    svc = FiscalService(conn)
+    assert svc.in_totvs_catalog("NCM", "22021000")
+    assert svc.in_totvs_catalog("NCM", "02012010")
+    assert not svc.in_totvs_catalog("NCM", "22029900")  # fora da tabela do sistema
 
 
 class _FakeCest:
@@ -360,8 +373,11 @@ def test_cest_ausente_no_totvs_corrige_so_com_escolha_inequivoca() -> None:
     nova, erros, corr = _aplicar_catalogo_totvs(empate, 3, "BEBIDA", _regra(), None)
     assert corr is None and nova.cest == "9900900" and "9900100" in erros[0].reason
 
-    _, erros, _ = _aplicar_catalogo_totvs(_FakeService({}, ncm_ok=False), 3, "X", _regra(), None)
-    assert erros[0].field == "NCM"
+    # NCM fora do TOTVS não bloqueia: só avisa
+    from fiscal import _aviso_ncm_totvs
+    sem_ncm = _FakeService({"9900100": ("Cerveja", True)}, ncm_ok=False)
+    assert _aviso_ncm_totvs(sem_ncm, 3, "CERVEJA", _regra())["valor"] == "99011000"
+    assert _aviso_ncm_totvs(unico, 3, "CERVEJA", _regra()) is None
 
 
 def test_embalagem_nao_conta_na_escolha_por_descricao() -> None:
@@ -411,3 +427,57 @@ def test_sugestao_recusada_rejeita_linha_em_vez_de_aplicar() -> None:
     recusada = build_regras(df, "1", service=svc, aplicar_sugestoes=False)
     assert recusada.produtos_validos == 0 and not recusada.correcoes
     assert "Sugestão não aplicada: 9900100" in recusada.errors[0].reason
+
+
+def test_aprende_ncm_recusado_pelo_totvs(tmp_path: Path) -> None:
+    import openpyxl
+    from totvs_catalog import registrar_recusados
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "NCM X UF"
+    ws.append(["CODIGO REGRA", "UF", "NCM", "CEST"])
+    ws.append([1, "SP", "99011000", None])
+    ws.append([2, "SP", "99012000", "9900100"])
+    planilha = tmp_path / "regras.xlsx"
+    wb.save(planilha)
+    erros = ("Aba: NCM X UF           | Célula: C3 | NCM Inválido.\n"
+             "Aba: NCM X UF           | Célula: C3 | Object reference not set to an instance of an object.\n")
+
+    conn = connect_memory()
+    assert registrar_recusados(conn, erros, planilha) == [("NCM", "99012000")]
+    svc = FiscalService(conn)
+    assert svc.has_totvs_catalog()
+    assert not svc.in_totvs_catalog("NCM", "99012000")  # recusado
+    assert svc.in_totvs_catalog("NCM", "99011000")      # sem catálogo: aceito
+
+
+def test_excluir_ncm_totvs_separa_produto_sem_derrubar_o_resto() -> None:
+    class Svc(_FakeService):
+        def in_totvs_catalog(self, tipo: str, code: str) -> bool:
+            return code != "99012000" if tipo == "NCM" else True
+
+        def has_totvs_catalog(self) -> bool:
+            return True
+
+        def validate_ncm_cest(self, *a, **k):  # type: ignore[no-untyped-def]
+            return type("V", (), {"status": StatusFiscal.NO_CEST, "ncm": "", "cest": "", "messages": [],
+                                  "to_dict": lambda self: {}})()
+
+        def audit(self, *a, **k) -> None:  # type: ignore[no-untyped-def]
+            return None
+
+    df = pd.DataFrame([
+        {"NOME PRODUTO": "OK", "NCM": "99011000", "CEST": "", "TRIBUTO": "I", "IMPOSTO (% ICMS)": "0",
+         "CFOP": "5102", "CST OU CSOSN": "102"},
+        {"NOME PRODUTO": "NCM RECUSADO", "NCM": "99012000", "CEST": "", "TRIBUTO": "I", "IMPOSTO (% ICMS)": "0",
+         "CFOP": "5102", "CST OU CSOSN": "102"},
+    ])
+    svc = Svc({})
+    mantido = build_regras(df, "1", service=svc, excluir_ncm_totvs=False)
+    assert mantido.produtos_validos == 2 and [a["valor"] for a in mantido.avisos] == ["99012000"]
+
+    excluido = build_regras(df, "1", service=svc, excluir_ncm_totvs=True)
+    assert excluido.produtos_validos == 1 and not excluido.avisos
+    assert [(e.field, e.value) for e in excluido.errors] == [("NCM", "99012000")]
+    assert {r.ncm for r in excluido.regras} == {"99011000"}

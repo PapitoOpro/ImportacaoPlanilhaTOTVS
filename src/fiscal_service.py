@@ -134,15 +134,25 @@ class FiscalService:
             por_codigo.setdefault(row["codigo"], self._cest_info(row))
         return list(por_codigo.values())
 
-    def has_totvs_catalog(self) -> bool:
+    def _totvs_count(self, table: str) -> int:
         try:
-            return self._conn.execute("SELECT 1 FROM totvs_catalogo LIMIT 1").fetchone() is not None
+            return self._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         except sqlite3.OperationalError:  # base criada antes do catálogo TOTVS
-            return False
+            return 0
+
+    def has_totvs_catalog(self) -> bool:
+        """Há conhecimento do TOTVS: catálogo exportado e/ou códigos recusados em importações."""
+        return bool(self._totvs_count("totvs_catalogo") or self._totvs_count("totvs_recusados"))
 
     def in_totvs_catalog(self, tipo: str, code: str) -> bool:
-        """True se o código está cadastrado (e ativo) no TOTVS do cliente."""
-        row = self._conn.execute(
+        """True se o TOTVS aceita o código: não foi recusado e, havendo catálogo, está cadastrado e ativo."""
+        if self._totvs_count("totvs_recusados") and self._conn.execute(
+            "SELECT 1 FROM totvs_recusados WHERE tipo = ? AND codigo = ?", (tipo, code)
+        ).fetchone():
+            return False
+        if not self._conn.execute("SELECT 1 FROM totvs_catalogo WHERE tipo = ? LIMIT 1", (tipo,)).fetchone():
+            return True  # nada carregado para este tipo: não há base para contestar
+        row =self._conn.execute(
             "SELECT ativo FROM totvs_catalogo WHERE tipo = ? AND codigo = ?", (tipo, code)
         ).fetchone()
         return bool(row and row["ativo"])

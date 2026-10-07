@@ -9,6 +9,7 @@ Uso:
 import argparse
 import json
 import logging
+import re
 import sqlite3
 import sys
 from datetime import datetime
@@ -16,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import openpyxl
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -29,6 +31,14 @@ CREATE TABLE IF NOT EXISTS totvs_catalogo (
     codigo    TEXT NOT NULL,
     descricao TEXT,
     ativo     INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+    PRIMARY KEY (tipo, codigo)
+);
+-- Códigos que o TOTVS recusou numa importação real (aprendidos do ErrosImportacao.txt).
+CREATE TABLE IF NOT EXISTS totvs_recusados (
+    tipo      TEXT NOT NULL CHECK (tipo IN ('NCM', 'CEST')),
+    codigo    TEXT NOT NULL,
+    motivo    TEXT NOT NULL,
+    data      TEXT NOT NULL,
     PRIMARY KEY (tipo, codigo)
 );
 CREATE TABLE IF NOT EXISTS totvs_catalogo_importacao (
@@ -79,16 +89,16 @@ def import_catalog(conn: sqlite3.Connection, path: Path) -> dict[str, int]:
     except (OSError, ValueError, KeyError) as exc:
         raise CatalogoError(f"Arquivo ilegível: {exc}") from exc
     try:
-        dados = {tipo: _read_sheet(wb, tipo, tam) for tipo, (_, tam) in _SHEETS.items()}
+        dados = {"CEST": _read_sheet(wb, "CEST", 7)}  # NCM vem da tabela MDIC (import_ncm_mdic), não desta aba
     finally:
         wb.close()
 
-    if not dados["NCM"] or not dados["CEST"]:
-        raise CatalogoError("Exportação sem NCM ou sem CEST")
+    if not dados["CEST"]:
+        raise CatalogoError("Exportação sem CEST")
 
     conn.executescript(SCHEMA)
     with conn:
-        conn.execute("DELETE FROM totvs_catalogo")
+        conn.execute("DELETE FROM totvs_catalogo WHERE tipo = 'CEST'")
         for tipo, itens in dados.items():
             conn.executemany(
                 "INSERT INTO totvs_catalogo (tipo, codigo, descricao, ativo) VALUES (?, ?, ?, ?)",
@@ -97,29 +107,129 @@ def import_catalog(conn: sqlite3.Connection, path: Path) -> dict[str, int]:
         conn.execute(
             "INSERT INTO totvs_catalogo_importacao (arquivo, data_importacao, total_ncm, total_cest) "
             "VALUES (?, ?, ?, ?)",
-            (path.name, datetime.now().isoformat(timespec="seconds"), len(dados["NCM"]), len(dados["CEST"])),
+            (path.name, datetime.now().isoformat(timespec="seconds"), 0, len(dados["CEST"])),
         )
-    totais = {"ncm": len(dados["NCM"]), "cest": len(dados["CEST"])}
+    totais = {"cest": len(dados["CEST"])}
     logger.info(json.dumps({"event": "catalogo_totvs_importado", "arquivo": path.name, **totais}))
     return totais
+
+
+def _detect_code_column(df: Any) -> str:
+    """Coluna do código NCM: pelo nome (ncm/codigo) ou, na falta, a que mais tem valores de 7-8 dígitos."""
+    for col in df.columns:
+        nome = re.sub(r"[^a-z]", "", str(col).lower())
+        if "ncm" in nome or nome in ("codigo", "cod"):
+            return col
+
+    def parece_ncm(v: Any) -> bool:
+        return len(re.sub(r"\D", "", str(v))) in (7, 8)
+
+    melhor = max(df.columns, key=lambda c: df[c].map(parece_ncm).mean())
+    if df[melhor].map(parece_ncm).mean() < 0.5:
+        raise CatalogoError("Não encontrei a coluna de código NCM no arquivo")
+    return melhor
+
+
+def import_ncm_mdic(conn: sqlite3.Connection, path: Path) -> int:
+    """Carrega a tabela MDIC do sistema (TabelaMDICCodigoNCM exportada em xlsx/csv): a lista de NCMs
+    que o TOTVS aceita. Substitui a anterior."""
+    try:
+        if path.suffix.lower() == ".csv":
+            df = pd.read_csv(path, dtype=str, sep=None, engine="python", encoding="utf-8-sig")
+        else:
+            df = pd.read_excel(path, dtype=str)
+    except (OSError, ValueError) as exc:
+        raise CatalogoError(f"Arquivo ilegível: {exc}") from exc
+
+    coluna = _detect_code_column(df)
+    col_inativo = next((c for c in df.columns if str(c).strip().lower() == "inativo"), None)
+    codigos: dict[str, int] = {}  # código -> ativo (o NCM repete por CEST vinculado)
+    for _, linha in df.iterrows():
+        digitos = re.sub(r"\D", "", str(linha[coluna]))
+        if len(digitos) not in (7, 8):  # Excel/SQL numérico perde o zero à esquerda
+            continue
+        inativo = col_inativo is not None and str(linha[col_inativo]).strip() in ("1", "True", "true")
+        codigo = digitos.zfill(8)
+        codigos[codigo] = max(codigos.get(codigo, 0), 0 if inativo else 1)
+    if not codigos:
+        raise CatalogoError("Nenhum NCM de 7/8 dígitos encontrado")
+
+    conn.executescript(SCHEMA)
+    with conn:
+        conn.execute("DELETE FROM totvs_catalogo WHERE tipo = 'NCM'")
+        conn.executemany("INSERT INTO totvs_catalogo (tipo, codigo, descricao, ativo) VALUES ('NCM', ?, '', ?)",
+                         sorted(codigos.items()))
+    logger.info(json.dumps({"event": "ncm_mdic_importado", "arquivo": path.name, "coluna": str(coluna),
+                            "total": len(codigos)}, ensure_ascii=False))
+    return len(codigos)
+
+
+_ERRO_LINHA = re.compile(r"Aba:\s*(?P<aba>.+?)\s*\|\s*C.lula:\s*(?P<ref>[A-Z]+\d+)\s*\|\s*(?P<tipo>NCM|CEST)\s+Inv", re.I)
+
+
+def parse_erros_totvs(texto: str, planilha: Path) -> dict[tuple[str, str], str]:
+    """Lê o ErrosImportacao.txt do TOTVS e devolve {(tipo, código): motivo}, buscando o valor
+    na célula indicada da planilha que foi importada."""
+    wb = openpyxl.load_workbook(planilha, read_only=False, data_only=True)
+    try:
+        recusados: dict[tuple[str, str], str] = {}
+        for linha in texto.splitlines():
+            m = _ERRO_LINHA.search(linha)
+            if not m or m["aba"].strip() not in wb.sheetnames:
+                continue
+            tipo = m["tipo"].upper()
+            valor = wb[m["aba"].strip()][m["ref"]].value
+            digitos = "".join(c for c in str(valor if valor is not None else "") if c.isdigit())
+            tamanho = _SHEETS[tipo][1]
+            if digitos and len(digitos) <= tamanho:
+                recusados[(tipo, digitos.zfill(tamanho))] = f"{tipo} Inválido (recusado na importação do TOTVS)"
+        return recusados
+    finally:
+        wb.close()
+
+
+def registrar_recusados(conn: sqlite3.Connection, texto_erros: str, planilha: Path) -> list[tuple[str, str]]:
+    recusados = parse_erros_totvs(texto_erros, planilha)
+    conn.executescript(SCHEMA)
+    agora = datetime.now().isoformat(timespec="seconds")
+    with conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO totvs_recusados (tipo, codigo, motivo, data) VALUES (?, ?, ?, ?)",
+            [(t, c, motivo, agora) for (t, c), motivo in recusados.items()],
+        )
+    logger.info(json.dumps({"event": "recusados_totvs_registrados", "total": len(recusados),
+                            "codigos": sorted(f"{t}:{c}" for t, c in recusados)}))
+    return sorted(recusados)
 
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     ap = argparse.ArgumentParser(description="Importa o cadastro NCM/CEST exportado do TOTVS.")
-    ap.add_argument("--arquivo", type=Path, required=True)
+    ap.add_argument("--arquivo", type=Path, help="Exportação NCM/CEST do TOTVS (xlsx)")
+    ap.add_argument("--ncm-mdic", type=Path, help="Tabela MDIC do sistema (TabelaMDICCodigoNCM) em xlsx/csv")
+    ap.add_argument("--erros", type=Path, help="ErrosImportacao.txt devolvido pelo TOTVS")
+    ap.add_argument("--planilha", type=Path, help="Planilha que foi importada (para ler as células do erro)")
     ap.add_argument("--db", type=Path, help="Caminho do SQLite (padrão: data/fiscal.db)")
     args = ap.parse_args(argv)
+    if not (args.arquivo or args.ncm_mdic or (args.erros and args.planilha)):
+        ap.error("informe --arquivo, --ncm-mdic, ou --erros junto com --planilha")
 
     conn = connect(args.db)
     try:
-        totais = import_catalog(conn, args.arquivo)
-    except CatalogoError as exc:
+        if args.arquivo:
+            totais = import_catalog(conn, args.arquivo)
+            print(f"Catálogo TOTVS importado: {totais['cest']} CESTs")
+        if args.ncm_mdic:
+            print(f"Tabela MDIC importada: {import_ncm_mdic(conn, args.ncm_mdic)} NCMs")
+        if args.erros:
+            texto = args.erros.read_bytes().decode("utf-8", errors="replace")
+            for tipo, codigo in registrar_recusados(conn, texto, args.planilha):
+                print(f"Recusado pelo TOTVS: {tipo} {codigo}")
+    except (CatalogoError, OSError) as exc:
         logger.error(json.dumps({"event": "catalogo_totvs_falhou", "erro": str(exc)}, ensure_ascii=False))
         return 1
     finally:
         conn.close()
-    print(f"Catálogo TOTVS importado: {totais['ncm']} NCMs, {totais['cest']} CESTs")
     return 0
 
 
