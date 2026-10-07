@@ -695,19 +695,83 @@
     $('.btn-erros').onclick = () => baixarB64(errosB64, 'erros.xlsx', MIME_XLSX);
     $('.stats').classList.add(cfg.stats.length === 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3');
 
+    // Pergunta se as sugestões devem ser usadas. Resolve true (aplicar), false (não aplicar) ou null (cancelar).
+    const perguntarSugestoes = correcoes => new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4';
+      overlay.innerHTML = `
+        <div class="bg-card border border-line rounded-2xl p-6 w-full max-w-4xl max-h-[85vh] flex flex-col">
+          <p class="font-semibold text-white text-lg">Sugestões de correção (${correcoes.length})</p>
+          <p class="text-muted text-sm mt-1 mb-4">Deseja usar as sugestões abaixo para gerar a planilha? Sem elas, essas linhas serão rejeitadas.</p>
+          <div class="overflow-auto flex-1">
+            <table class="w-full text-sm">
+              <thead class="text-muted text-xs uppercase sticky top-0 bg-card">
+                <tr class="border-b border-line">
+                  <th class="py-2 px-3 text-left font-medium">Linha</th>
+                  <th class="py-2 px-3 text-left font-medium">Campo</th>
+                  <th class="py-2 px-3 text-left font-medium">De</th>
+                  <th class="py-2 px-3 text-left font-medium">Para</th>
+                  <th class="py-2 px-3 text-left font-medium">Motivo</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-line">${correcoes.map(c => `
+                <tr>
+                  <td class="py-2 px-3 text-muted">${esc(c.linha)}</td>
+                  <td class="py-2 px-3 text-slate-200 font-medium">${esc(c.campo)}</td>
+                  <td class="py-2 px-3 text-rose-300">${esc(c.de) || '—'}</td>
+                  <td class="py-2 px-3 text-emerald-300">${esc(c.para)}</td>
+                  <td class="py-2 px-3 text-muted">${esc(c.motivo)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="flex flex-wrap gap-3 justify-end mt-5">
+            <button type="button" data-r="null" class="text-muted hover:text-white text-sm px-4 py-2">Cancelar</button>
+            <button type="button" data-r="false" class="border border-line text-slate-200 hover:bg-panel text-sm px-4 py-2 rounded-lg">Gerar sem aplicar</button>
+            <button type="button" data-r="true" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2 rounded-lg">Aplicar sugestões e gerar</button>
+          </div>
+        </div>`;
+      overlay.querySelectorAll('button[data-r]').forEach(b => b.onclick = () => {
+        overlay.remove();
+        resolve(JSON.parse(b.dataset.r));
+      });
+      document.body.appendChild(overlay);
+    });
+
     $('.btn-processar').onclick = async () => {
       if (!file) return;
       show('.btn-processar', false);
       show('.loading', true);
       hideOutputs();
 
-      const form = new FormData();
-      form.append('file', file);
-      options.querySelectorAll('[name]').forEach(el => form.append(el.name, el.value.trim()));
+      const post = async (extra = {}) => {
+        const form = new FormData();
+        form.append('file', file);
+        options.querySelectorAll('[name]').forEach(el => form.append(el.name, el.value.trim()));
+        Object.entries(extra).forEach(([k, v]) => form.append(k, v));
+        const res = await fetch(cfg.endpoint, { method: 'POST', body: form });
+        return { res, data: await res.json() };
+      };
 
       try {
-        const res = await fetch(cfg.endpoint, { method: 'POST', body: form });
-        const data = await res.json();
+        let extra = {};
+        if (cfg.fiscal) {
+          const previa = await post({ previa: true });
+          if (!previa.res.ok) {
+            alert('Erro: ' + (previa.data.detail || 'Falha no processamento'));
+            show('.btn-processar', true);
+            return;
+          }
+          if (previa.data.correcoes && previa.data.correcoes.length > 0) {
+            show('.loading', false);
+            const aplicar = await perguntarSugestoes(previa.data.correcoes);
+            if (aplicar === null) { show('.btn-processar', true); return; }
+            show('.loading', true);
+            extra = { aplicar_sugestoes: aplicar };
+          }
+        }
+
+        const { res, data } = await post(extra);
         if (!res.ok) {
           alert('Erro: ' + (data.detail || 'Falha no processamento'));
           show('.btn-processar', true);

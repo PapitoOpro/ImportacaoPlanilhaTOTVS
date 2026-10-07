@@ -316,26 +316,98 @@ def test_catalogo_totvs_barra_cest_ausente(tmp_path: Path) -> None:
     assert not svc.in_totvs_catalog("CEST", "9900300")  # ausente
 
 
-def test_cest_ausente_no_totvs_corrige_so_com_candidato_unico() -> None:
-    from fiscal import RegraFiscal, _aplicar_catalogo_totvs
+class _FakeCest:
+    def __init__(self, description: str) -> None:
+        self.description = description
 
-    class FakeService:
-        def __init__(self, cadastrados: set[str], candidatos: list[str]) -> None:
-            self._cad, self._cand = cadastrados, candidatos
 
-        def in_totvs_catalog(self, tipo: str, code: str) -> bool:
-            return code in self._cad
+class _FakeService:
+    """Catálogo fictício: código → (descrição, cadastrado no TOTVS)."""
 
-        def totvs_cest_candidates(self, ncm: str, ref: str | None) -> list[str]:
-            return self._cand
+    def __init__(self, cests: dict[str, tuple[str, bool]], ncm_ok: bool = True) -> None:
+        self._c, self._ncm_ok = cests, ncm_ok
 
-    regra = RegraFiscal("99011000", "9900900", "T", 0.0, "5102", "102", "", None, None, None)
+    def in_totvs_catalog(self, tipo: str, code: str) -> bool:
+        return self._ncm_ok if tipo == "NCM" else self._c.get(code, ("", False))[1]
 
-    nova, erros, corr = _aplicar_catalogo_totvs(FakeService({"99011000"}, ["9900100"]), 3, regra, None)
+    def totvs_cest_candidates(self, ncm: str, ref: str | None) -> list[str]:
+        return [c for c, (_, ok) in self._c.items() if ok]
+
+    def get_cests_by_ncm(self, ncm: str, ref: str | None) -> list:
+        return [type("C", (), {"code": c})() for c in self._c]
+
+    def get_cest(self, code: str, ref: str | None = None) -> _FakeCest | None:
+        return _FakeCest(self._c[code][0]) if code in self._c else None
+
+
+def _regra(cest: str = "9900900", tributo: str = "T", cst: str = "102") -> "RegraFiscal":
+    from fiscal import RegraFiscal
+    return RegraFiscal("99011000", cest, tributo, 0.0, "5102", cst, "", None, None, None)
+
+
+def test_cest_ausente_no_totvs_corrige_so_com_escolha_inequivoca() -> None:
+    from fiscal import _aplicar_catalogo_totvs
+
+    unico = _FakeService({"9900100": ("Cerveja", True)})
+    nova, erros, corr = _aplicar_catalogo_totvs(unico, 3, "CERVEJA X", _regra(), None)
     assert (nova.cest, erros, corr["para"]) == ("9900100", [], "9900100")
 
-    nova, erros, corr = _aplicar_catalogo_totvs(FakeService({"99011000"}, ["9900100", "9900200"]), 3, regra, None)
-    assert corr is None and nova.cest == "9900900" and "9900100, 9900200" in erros[0].reason
+    por_nome = _FakeService({"9900100": ("Cerveja de malte", True), "9900200": ("Refrigerante", True)})
+    nova, erros, corr = _aplicar_catalogo_totvs(por_nome, 3, "CERVEJA LATA 350ML", _regra(), None)
+    assert nova.cest == "9900100" and "aderente" in corr["motivo"]
 
-    _, erros, _ = _aplicar_catalogo_totvs(FakeService(set(), []), 3, regra, None)
+    empate = _FakeService({"9900100": ("Bebida alfa", True), "9900200": ("Bebida beta", True)})
+    nova, erros, corr = _aplicar_catalogo_totvs(empate, 3, "BEBIDA", _regra(), None)
+    assert corr is None and nova.cest == "9900900" and "9900100" in erros[0].reason
+
+    _, erros, _ = _aplicar_catalogo_totvs(_FakeService({}, ncm_ok=False), 3, "X", _regra(), None)
     assert erros[0].field == "NCM"
+
+
+def test_embalagem_nao_conta_na_escolha_por_descricao() -> None:
+    from fiscal import _aplicar_catalogo_totvs
+
+    svc = _FakeService({"9900100": ("Cerveja de malte", True), "9900200": ("Energetico em lata", True)})
+    nova, _, _ = _aplicar_catalogo_totvs(svc, 3, "CERVEJA LATA", _regra(), None)
+    assert nova.cest == "9900100"  # "lata" casaria com o energético se contasse
+
+
+def test_obrigatoriedade_cest_so_com_icms_st() -> None:
+    from fiscal import _aplicar_obrigatoriedade
+
+    svc = _FakeService({"9900100": ("Cerveja", True)})
+    # sem ST (CSOSN 102): CEST fica em branco
+    nova, erros, corr = _aplicar_obrigatoriedade(svc, 1, "CERVEJA", _regra("", "T", "102"), "1", None, True)
+    assert (nova.cest, erros, corr) == ("", [], None)
+    # ST (CSOSN 500): preenche pelo candidato único
+    nova, erros, corr = _aplicar_obrigatoriedade(svc, 1, "CERVEJA", _regra("", "T", "500"), "1", None, True)
+    assert nova.cest == "9900100" and corr["de"] == ""
+    # Regime normal CST 060 (3 dígitos: origem+CST) também é ST
+    nova, _, _ = _aplicar_obrigatoriedade(svc, 1, "CERVEJA", _regra("", "T", "060"), "3", None, True)
+    assert nova.cest == "9900100"
+    # NCM fora do Convênio: nada a preencher mesmo com ST
+    vazio = _FakeService({})
+    nova, erros, _ = _aplicar_obrigatoriedade(vazio, 1, "X", _regra("", "S", "500"), "1", None, True)
+    assert (nova.cest, erros) == ("", [])
+    # vários candidatos sem destaque: rejeita (Rejeição 806) listando opções
+    amb = _FakeService({"9900100": ("Alfa", True), "9900200": ("Beta", True)})
+    _, erros, _ = _aplicar_obrigatoriedade(amb, 1, "COISA", _regra("", "S", "500"), "1", None, True)
+    assert "806" in erros[0].reason and "9900200" in erros[0].reason
+
+
+def test_sugestao_recusada_rejeita_linha_em_vez_de_aplicar() -> None:
+    svc = _FakeService({"9900100": ("Cerveja", True)})
+    svc.has_totvs_catalog = lambda: True  # type: ignore[attr-defined]
+    svc.validate_ncm_cest = lambda *a, **k: type(  # type: ignore[attr-defined]
+        "V", (), {"status": StatusFiscal.VALID, "ncm": "", "cest": "", "messages": [],
+                  "to_dict": lambda self: {}})()
+    svc.audit = lambda *a, **k: None  # type: ignore[attr-defined]
+    df = pd.DataFrame([{"NOME PRODUTO": "CERVEJA", "NCM": "99011000", "CEST": "9900900", "TRIBUTO": "S",
+                        "IMPOSTO (% ICMS)": "0", "CFOP": "5405", "CST OU CSOSN": "500"}])
+
+    aceita = build_regras(df, "1", service=svc, aplicar_sugestoes=True)
+    assert aceita.produtos_validos == 1 and aceita.regras[0].cest == "9900100" and len(aceita.correcoes) == 1
+
+    recusada = build_regras(df, "1", service=svc, aplicar_sugestoes=False)
+    assert recusada.produtos_validos == 0 and not recusada.correcoes
+    assert "Sugestão não aplicada: 9900100" in recusada.errors[0].reason

@@ -133,6 +133,8 @@ async def processar_regras_ncm(
     uf: str = Form("SP"),
     numero_loja: str = Form(""),
     usuario: str = Form(""),
+    previa: bool = Form(False),
+    aplicar_sugestoes: bool = Form(True),
 ):
     suffix = _check_extensao(file)
     if regime not in REGIMES:
@@ -155,9 +157,13 @@ async def processar_regras_ncm(
                 df, regime, service=_FISCAL,
                 usuario=usuario.strip()[:100] or "anonimo",
                 arquivo=Path(file.filename or "").name[:200],
+                aplicar_sugestoes=aplicar_sugestoes or previa,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        if previa:  # só as sugestões; a planilha é gerada após a confirmação do usuário
+            return JSONResponse({"previa": True, "correcoes": result.correcoes})
 
         output_path = work_dir / "regras.xlsx"
         write_regras(result.regras, output_path, _TEMPLATE_REGRAS, regime, uf, numero_loja.strip())

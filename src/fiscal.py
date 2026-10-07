@@ -204,28 +204,112 @@ def _analise_item(linha: int, produto: str, v: NcmCestValidation) -> dict[str, A
     return {"linha": linha, "produto": produto, **v.to_dict()}
 
 
+_STOPWORDS = {"DE", "DA", "DO", "DAS", "DOS", "EM", "COM", "SEM", "E", "OU", "PARA", "A", "O", "AS", "OS",
+              "EXCETO", "INFERIOR", "IGUAL", "CONTEUDO", "EMBALAGEM", "EMBALAGENS", "OUTROS", "OUTRAS", "DEMAIS",
+              # embalagem/volume: descrevem a apresentação, não a mercadoria
+              "LATA", "VIDRO", "GARRAFA", "PET", "DESCARTAVEL", "RETORNAVEL", "CAIXA", "PACOTE", "UNIDADE",
+              "LITRO", "LONG", "NECK", "PRONTA", "PRONTAS"}
+_CST_ST = {"10", "30", "60", "70"}               # CST com ICMS-ST (90 = "outras", ambíguo: não exige)
+_CSOSN_ST = {"201", "202", "203", "500"}         # CSOSN com ICMS-ST (900 = "outros", ambíguo: não exige)
+
+
+def _tokens(texto: str) -> set[str]:
+    """Palavras relevantes (sem acento/plural/números) para comparar produto × descrição do CEST."""
+    palavras = re.findall(r"[A-Z]+", _norm_text(texto))
+    return {p.rstrip("S") for p in palavras if len(p) > 2 and p not in _STOPWORDS}
+
+
+def _score(service: FiscalService, alvo: set[str], codigo: str) -> int:
+    info = service.get_cest(codigo)
+    return len(alvo & _tokens(info.description)) if info else 0
+
+
+def _escolher_cest(service: FiscalService, produto: str, candidatos: list[str]) -> tuple[str | None, list[str]]:
+    """(escolhido, opções ordenadas por aderência ao nome do produto). Escolhe se há 1 candidato ou se a
+    descrição do produto destaca um deles com folga; senão None e o chamador rejeita listando as opções."""
+    if len(candidatos) == 1:
+        return candidatos[0], candidatos
+    alvo = _tokens(produto)
+    ordenados = sorted(candidatos, key=lambda c: (-_score(service, alvo, c), c))
+    if len(ordenados) > 1 and _score(service, alvo, ordenados[0]) > _score(service, alvo, ordenados[1]):
+        return ordenados[0], ordenados
+    return None, ordenados
+
+
+def _opcoes(service: FiscalService, codigos: list[str]) -> str:
+    def rotulo(c: str) -> str:
+        info = service.get_cest(c)
+        if not info:
+            return c
+        desc = info.description if len(info.description) <= 45 else info.description[:45] + "..."
+        return f"{c} ({desc})"
+    return "; ".join(rotulo(c) for c in codigos[:6])
+
+
+def _exige_cest(regra: RegraFiscal, regime: str) -> bool:
+    """Operação com ICMS-ST (tributo S ou CST/CSOSN de ST): o CEST é obrigatório (Rejeição 806)."""
+    if regra.tributo == "S":
+        return True
+    if regime in _SIMPLES:
+        return regra.cst_csosn[-3:] in _CSOSN_ST
+    return regra.cst_csosn[-2:] in _CST_ST
+
+
+def _candidatos_cest(service: FiscalService, ncm: str, ref: str | None, usar_totvs: bool) -> list[str]:
+    if usar_totvs:
+        return service.totvs_cest_candidates(ncm, ref)
+    return [c.code for c in service.get_cests_by_ncm(ncm, ref)]
+
+
 def _aplicar_catalogo_totvs(
-    service: FiscalService, linha: int, regra: RegraFiscal, reference_date: str | None
+    service: FiscalService, linha: int, produto: str, regra: RegraFiscal, reference_date: str | None
 ) -> tuple[RegraFiscal, list[ValidationError], dict[str, Any] | None]:
     """NCM/CEST válidos oficialmente, mas ausentes (ou inativos) no cadastro do TOTVS.
 
-    NCM ausente: rejeita. CEST ausente: troca somente se houver exatamente 1 CEST oficialmente
-    relacionado ao NCM e cadastrado no TOTVS; com 0 ou vários candidatos rejeita e lista as opções."""
+    NCM ausente: rejeita. CEST ausente: troca se houver 1 CEST oficial do NCM aceito pelo TOTVS
+    ou se a descrição do produto destaca um deles; senão rejeita e lista as opções."""
     if not service.in_totvs_catalog("NCM", regra.ncm):
         return regra, [ValidationError(row=linha, field="NCM", value=regra.ncm,
                                        reason="NCM não cadastrado no TOTVS — cadastre-o antes de importar")], None
     if not regra.cest or service.in_totvs_catalog("CEST", regra.cest):
         return regra, [], None
 
-    candidatos = service.totvs_cest_candidates(regra.ncm, reference_date)
-    if len(candidatos) == 1:
-        correcao = {"linha": linha, "campo": "CEST", "de": regra.cest, "para": candidatos[0],
-                    "motivo": "CEST não cadastrado no TOTVS; substituído pelo único CEST oficial do NCM aceito pelo TOTVS"}
-        return replace(regra, cest=candidatos[0]), [], correcao
+    escolhido, ordenados = _escolher_cest(service, produto, service.totvs_cest_candidates(regra.ncm, reference_date))
+    if escolhido:
+        criterio = "único" if len(ordenados) == 1 else "mais aderente ao nome do produto"
+        correcao = {"linha": linha, "campo": "CEST", "de": regra.cest, "para": escolhido,
+                    "motivo": f"CEST não cadastrado no TOTVS; trocado pelo CEST do NCM aceito pelo TOTVS ({criterio})"}
+        return replace(regra, cest=escolhido), [], correcao
 
-    opcoes = f" Opções aceitas pelo TOTVS para o NCM: {', '.join(candidatos)}." if candidatos else         " Nenhum CEST oficial do NCM está cadastrado no TOTVS."
+    detalhe = (f" Opções aceitas pelo TOTVS: {_opcoes(service, ordenados)}." if ordenados
+               else " Nenhum CEST oficial do NCM está cadastrado no TOTVS.")
     return regra, [ValidationError(row=linha, field="CEST", value=regra.cest,
-                                   reason=f"CEST não cadastrado no TOTVS.{opcoes}")], None
+                                   reason=f"CEST não cadastrado no TOTVS.{detalhe}")], None
+
+
+def _aplicar_obrigatoriedade(
+    service: FiscalService, linha: int, produto: str, regra: RegraFiscal, regime: str,
+    reference_date: str | None, usar_totvs: bool,
+) -> tuple[RegraFiscal, list[ValidationError], dict[str, Any] | None]:
+    """CEST vazio: só é exigido se o NCM consta no Convênio 142/18 E a operação é de ICMS-ST.
+    Fora disso fica em branco (ex.: alimento preparado, venda sem ST)."""
+    if regra.cest or not _exige_cest(regra, regime):
+        return regra, [], None
+    candidatos = _candidatos_cest(service, regra.ncm, reference_date, usar_totvs)
+    if not candidatos:
+        return regra, [], None  # NCM fora do Convênio (ou sem CEST aceito): não há o que preencher
+
+    escolhido, ordenados = _escolher_cest(service, produto, candidatos)
+    if escolhido:
+        criterio = "único do NCM" if len(ordenados) == 1 else "mais aderente ao nome do produto"
+        return replace(regra, cest=escolhido), [], {
+            "linha": linha, "campo": "CEST", "de": "", "para": escolhido,
+            "motivo": f"CEST obrigatório (operação com ICMS-ST) e não informado; preenchido com o CEST {criterio}",
+        }
+    return regra, [ValidationError(
+        row=linha, field="CEST", value="",
+        reason=f"CEST obrigatório (operação com ICMS-ST, Rejeição 806). Opções: {_opcoes(service, ordenados)}.",
+    )], None
 
 
 def build_regras(
@@ -235,12 +319,14 @@ def build_regras(
     usuario: str = "",
     arquivo: str = "",
     reference_date: str | None = None,
+    aplicar_sugestoes: bool = True,
 ) -> ResultadoRegras:
     """Uma regra por combinação única de NCM + CEST + dados fiscais.
 
     Com `service`, cada produto é validado contra a base oficial (NCM/CEST/NCM×CEST):
     NCM/CEST inexistentes rejeitam a linha; demais situações (divergência, múltiplos CESTs)
-    são apenas sinalizadas — o CEST nunca é preenchido automaticamente."""
+    são apenas sinalizadas. CEST recusado pelo TOTVS ou obrigatório (ICMS-ST) é corrigido
+    quando há escolha inequívoca; senão a linha é rejeitada com as opções."""
     if regime not in REGIMES:
         raise ValueError(f"Regime inválido: {regime}")
 
@@ -272,11 +358,26 @@ def build_regras(
                     reason=" ".join(m for m in validacao.messages if "Verifique" not in m),
                 ))
 
-        if regra and not errors and totvs_ativo:
-            regra, errors_totvs, correcao = _aplicar_catalogo_totvs(service, linha, regra, reference_date)
-            errors.extend(errors_totvs)
-            if correcao:
-                result.correcoes.append(correcao)
+        if regra and not errors and service is not None:
+            etapas = []
+            if totvs_ativo:
+                etapas.append(lambda r: _aplicar_catalogo_totvs(service, linha, produto, r, reference_date))
+            etapas.append(
+                lambda r: _aplicar_obrigatoriedade(service, linha, produto, r, regime, reference_date, totvs_ativo))
+            for etapa in etapas:
+                regra_etapa, errors_etapa, correcao = etapa(regra)
+                errors.extend(errors_etapa)
+                if correcao and not aplicar_sugestoes:
+                    errors.append(ValidationError(
+                        row=linha, field=correcao["campo"], value=correcao["de"],
+                        reason=f"{correcao['motivo']}. Sugestão não aplicada: {correcao['para']}",
+                    ))
+                    break
+                regra = regra_etapa
+                if correcao:
+                    result.correcoes.append(correcao)
+                if errors_etapa:
+                    break
 
         if errors:
             result.errors.extend(errors)
