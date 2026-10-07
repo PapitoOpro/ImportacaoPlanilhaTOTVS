@@ -134,6 +134,23 @@ class FiscalService:
             por_codigo.setdefault(row["codigo"], self._cest_info(row))
         return list(por_codigo.values())
 
+    def has_totvs_catalog(self) -> bool:
+        try:
+            return self._conn.execute("SELECT 1 FROM totvs_catalogo LIMIT 1").fetchone() is not None
+        except sqlite3.OperationalError:  # base criada antes do catálogo TOTVS
+            return False
+
+    def in_totvs_catalog(self, tipo: str, code: str) -> bool:
+        """True se o código está cadastrado (e ativo) no TOTVS do cliente."""
+        row = self._conn.execute(
+            "SELECT ativo FROM totvs_catalogo WHERE tipo = ? AND codigo = ?", (tipo, code)
+        ).fetchone()
+        return bool(row and row["ativo"])
+
+    def totvs_cest_candidates(self, ncm: str, reference_date: date | str | None = None) -> list[str]:
+        """CESTs oficialmente relacionados ao NCM que também estão cadastrados no TOTVS."""
+        return [c.code for c in self.get_cests_by_ncm(ncm, reference_date) if self.in_totvs_catalog("CEST", c.code)]
+
     def has_data(self) -> bool:
         tipos = {r["tipo"] for r in self._conn.execute("SELECT DISTINCT tipo FROM importacao")}
         return {"NCM", "CEST"} <= tipos

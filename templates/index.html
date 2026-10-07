@@ -390,6 +390,23 @@
         </div>
         <button type="button" class="btn-novo mt-6 w-full text-muted hover:text-white text-sm py-2 transition">← Processar outro arquivo</button>
       </div>
+      <div class="correcoes-container hidden lg:col-span-2 bg-card border border-line rounded-2xl p-6">
+        <p class="font-semibold text-white mb-4">Correções aplicadas automaticamente</p>
+        <div class="overflow-x-auto max-h-[300px] overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="text-muted text-xs uppercase sticky top-0 bg-card">
+              <tr class="border-b border-line">
+                <th class="py-3 px-3 text-left font-medium">Linha</th>
+                <th class="py-3 px-3 text-left font-medium">Campo</th>
+                <th class="py-3 px-3 text-left font-medium">De</th>
+                <th class="py-3 px-3 text-left font-medium">Para</th>
+                <th class="py-3 px-3 text-left font-medium">Motivo</th>
+              </tr>
+            </thead>
+            <tbody class="correcoes-body divide-y divide-line"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="erros-container hidden lg:col-span-2 bg-card border border-line rounded-2xl p-6">
         <p class="font-semibold text-white mb-4">Linhas rejeitadas</p>
         <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
@@ -712,6 +729,17 @@
             <td class="py-3 px-3 text-slate-200 font-medium">${esc(e.campo)}</td>
             <td class="py-3 px-3 text-muted">${esc(e.valor) || '—'}</td>
             <td class="py-3 px-3 text-rose-300">${esc(e.motivo)}</td>
+          </tr>`).join('') : '';
+
+        const temCorrecoes = data.correcoes && data.correcoes.length > 0;
+        show('.correcoes-container', !!temCorrecoes);
+        $('.correcoes-body').innerHTML = temCorrecoes ? data.correcoes.map(c => `
+          <tr class="hover:bg-panel/60">
+            <td class="py-3 px-3 text-muted">${esc(c.linha)}</td>
+            <td class="py-3 px-3 text-slate-200 font-medium">${esc(c.campo)}</td>
+            <td class="py-3 px-3 text-rose-300">${esc(c.de)}</td>
+            <td class="py-3 px-3 text-emerald-300">${esc(c.para)}</td>
+            <td class="py-3 px-3 text-muted">${esc(c.motivo)}</td>
           </tr>`).join('') : '';
 
         show('.results', true);

@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +75,7 @@ class ResultadoRegras:
     produtos_validos: int = 0
     errors: list[ValidationError] = field(default_factory=list)
     analise: list[dict[str, Any]] = field(default_factory=list)
+    correcoes: list[dict[str, Any]] = field(default_factory=list)
     base_fiscal_disponivel: bool = False
 
 
@@ -203,6 +204,30 @@ def _analise_item(linha: int, produto: str, v: NcmCestValidation) -> dict[str, A
     return {"linha": linha, "produto": produto, **v.to_dict()}
 
 
+def _aplicar_catalogo_totvs(
+    service: FiscalService, linha: int, regra: RegraFiscal, reference_date: str | None
+) -> tuple[RegraFiscal, list[ValidationError], dict[str, Any] | None]:
+    """NCM/CEST válidos oficialmente, mas ausentes (ou inativos) no cadastro do TOTVS.
+
+    NCM ausente: rejeita. CEST ausente: troca somente se houver exatamente 1 CEST oficialmente
+    relacionado ao NCM e cadastrado no TOTVS; com 0 ou vários candidatos rejeita e lista as opções."""
+    if not service.in_totvs_catalog("NCM", regra.ncm):
+        return regra, [ValidationError(row=linha, field="NCM", value=regra.ncm,
+                                       reason="NCM não cadastrado no TOTVS — cadastre-o antes de importar")], None
+    if not regra.cest or service.in_totvs_catalog("CEST", regra.cest):
+        return regra, [], None
+
+    candidatos = service.totvs_cest_candidates(regra.ncm, reference_date)
+    if len(candidatos) == 1:
+        correcao = {"linha": linha, "campo": "CEST", "de": regra.cest, "para": candidatos[0],
+                    "motivo": "CEST não cadastrado no TOTVS; substituído pelo único CEST oficial do NCM aceito pelo TOTVS"}
+        return replace(regra, cest=candidatos[0]), [], correcao
+
+    opcoes = f" Opções aceitas pelo TOTVS para o NCM: {', '.join(candidatos)}." if candidatos else         " Nenhum CEST oficial do NCM está cadastrado no TOTVS."
+    return regra, [ValidationError(row=linha, field="CEST", value=regra.cest,
+                                   reason=f"CEST não cadastrado no TOTVS.{opcoes}")], None
+
+
 def build_regras(
     df: pd.DataFrame,
     regime: str,
@@ -223,6 +248,7 @@ def build_regras(
         raise ValueError("Coluna NCM não encontrada na planilha do cliente")
 
     result = ResultadoRegras(base_fiscal_disponivel=service is not None)
+    totvs_ativo = service is not None and service.has_totvs_catalog()
     vistos: dict[RegraFiscal, None] = {}
 
     for idx, row in df.iterrows():
@@ -245,6 +271,12 @@ def build_regras(
                     value=validacao.ncm if campo == "NCM" else validacao.cest,
                     reason=" ".join(m for m in validacao.messages if "Verifique" not in m),
                 ))
+
+        if regra and not errors and totvs_ativo:
+            regra, errors_totvs, correcao = _aplicar_catalogo_totvs(service, linha, regra, reference_date)
+            errors.extend(errors_totvs)
+            if correcao:
+                result.correcoes.append(correcao)
 
         if errors:
             result.errors.extend(errors)

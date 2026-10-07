@@ -285,3 +285,57 @@ def test_conversao_rejeita_ncm_invalido_e_sinaliza_multiplos(svc: FiscalService)
     assert [e.field for e in result.errors] == ["NCM"]
     # CEST nunca é preenchido automaticamente
     assert {r.cest for r in result.regras if r.ncm == "99012000"} == {""}
+
+
+# ----------------------------------------------------------------------------- catálogo TOTVS
+
+def test_catalogo_totvs_barra_cest_ausente(tmp_path: Path) -> None:
+    import openpyxl
+    from totvs_catalog import import_catalog
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "NCM"
+    ws.append(["Id", "Codigo", "Descricao", "Inativo"])
+    ws.append([1, 9901100, '"Item"', 0])  # zero à esquerda perdido pelo Excel
+    ws = wb.create_sheet("CEST")
+    ws.append(["Id", "Cod_CEST", "Descricao", "Inativo"])
+    ws.append([1, 9900100, "Cest", 0])
+    ws.append([2, 9900200, "Cest inativo", 1])
+    path = tmp_path / "totvs.xlsx"
+    wb.save(path)
+
+    conn = connect_memory()
+    assert import_catalog(conn, path) == {"ncm": 1, "cest": 2}
+    svc = FiscalService(conn)
+    assert svc.has_totvs_catalog()
+    assert svc.in_totvs_catalog("NCM", "00990110") is False  # zfill(8) de 9901100 = 09901100
+    assert svc.in_totvs_catalog("NCM", "09901100")
+    assert svc.in_totvs_catalog("CEST", "9900100")
+    assert not svc.in_totvs_catalog("CEST", "9900200")  # inativo
+    assert not svc.in_totvs_catalog("CEST", "9900300")  # ausente
+
+
+def test_cest_ausente_no_totvs_corrige_so_com_candidato_unico() -> None:
+    from fiscal import RegraFiscal, _aplicar_catalogo_totvs
+
+    class FakeService:
+        def __init__(self, cadastrados: set[str], candidatos: list[str]) -> None:
+            self._cad, self._cand = cadastrados, candidatos
+
+        def in_totvs_catalog(self, tipo: str, code: str) -> bool:
+            return code in self._cad
+
+        def totvs_cest_candidates(self, ncm: str, ref: str | None) -> list[str]:
+            return self._cand
+
+    regra = RegraFiscal("99011000", "9900900", "T", 0.0, "5102", "102", "", None, None, None)
+
+    nova, erros, corr = _aplicar_catalogo_totvs(FakeService({"99011000"}, ["9900100"]), 3, regra, None)
+    assert (nova.cest, erros, corr["para"]) == ("9900100", [], "9900100")
+
+    nova, erros, corr = _aplicar_catalogo_totvs(FakeService({"99011000"}, ["9900100", "9900200"]), 3, regra, None)
+    assert corr is None and nova.cest == "9900900" and "9900100, 9900200" in erros[0].reason
+
+    _, erros, _ = _aplicar_catalogo_totvs(FakeService(set(), []), 3, regra, None)
+    assert erros[0].field == "NCM"

@@ -183,6 +183,7 @@ async def processar_regras_ncm(
             "base_fiscal":      result.base_fiscal_disponivel,
             "resumo_fiscal":    resumo_fiscal,
             "analise":          result.analise,
+            "correcoes":        result.correcoes,
             "arquivo_analise":  arquivo_analise_b64,
             "stats": {
                 "total":      result.total_produtos,
