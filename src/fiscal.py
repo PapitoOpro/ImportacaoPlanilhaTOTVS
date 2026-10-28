@@ -55,6 +55,7 @@ _TIPO_ITEM_PADRAO = "00"  # Mercadoria para Revenda
 _CFOP_PADRAO = "5102"
 _CSOSN_PADRAO = "102"
 _TRIBUTO_PADRAO = "I"
+_CEST_AGUA = "0300700"  # sugerido por padrão nos CESTs obrigatórios ambíguos que o produto não resolve
 _FIRST_DATA_ROW = 3       # linha 1 = seções, linha 2 = cabeçalho na planilha do cliente
 
 
@@ -344,7 +345,7 @@ def _aplicar_obrigatoriedade(
             "linha": linha, "campo": "CEST", "de": "", "para": escolhido, "manual": manual,
             "motivo": f"CEST obrigatório (operação com ICMS-ST) e não informado; preenchido com o CEST {criterio}",
         }
-    grupo = grupos.setdefault(regra.ncm, {"opcoes": [
+    grupo = grupos.setdefault(regra.ncm, {"sugerido": _CEST_AGUA if _CEST_AGUA in ordenados else ordenados[0], "opcoes": [
         {"codigo": c, "descricao": info.description if (info := service.get_cest(c)) else ""} for c in ordenados
     ], "produtos": []})
     grupo["produtos"].append({"linha": linha, "produto": produto})

@@ -495,3 +495,18 @@ def test_cest_ambiguo_vira_grupo_e_escolha_vale_para_o_ncm() -> None:
     nova, erros, correcao = _aplicar_obrigatoriedade(
         amb, 2, "COISA", _regra("", "S", "500"), "1", None, True, {ncm: "9900200"}, {})
     assert (nova.cest, erros, correcao["manual"]) == ("9900200", [], True)
+
+
+def test_grupo_cest_sugere_agua_ou_primeira_opcao() -> None:
+    from fiscal import _aplicar_obrigatoriedade
+
+    regra = _regra("", "S", "500")
+    com_agua: dict = {}
+    _aplicar_obrigatoriedade(_FakeService({"0300700": ("Agua", True), "9900200": ("Beta", True)}),
+                             1, "COISA", regra, "1", None, True, {}, com_agua)
+    assert com_agua[regra.ncm]["sugerido"] == "0300700"
+
+    sem_agua: dict = {}
+    _aplicar_obrigatoriedade(_FakeService({"9900100": ("Alfa", True), "9900200": ("Beta", True)}),
+                             1, "COISA", regra, "1", None, True, {}, sem_agua)
+    assert sem_agua[regra.ncm]["sugerido"] == "9900100"
