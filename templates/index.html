@@ -770,14 +770,14 @@
     $('.stats').classList.add(cfg.stats.length === 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3');
 
     // Pergunta antes de gerar. Resolve { aplicar, excluir } (booleanos) ou null (cancelar).
-    const perguntarAntesDeGerar = (correcoes, avisos) => new Promise(resolve => {
+    const perguntarAntesDeGerar = (correcoes, avisos, grupos) => new Promise(resolve => {
       const overlay = document.createElement('div');
       overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4';
       const th = t => `<th class="py-2 px-3 text-left font-medium">${t}</th>`;
       const secCorrecoes = correcoes.length ? `
         <label class="flex items-start gap-3 mt-2 text-white font-medium cursor-pointer">
           <input type="checkbox" class="chk-aplicar mt-1" checked>
-          <span>Aplicar as ${correcoes.length} sugestões de CEST
+          <span>Aplicar as ${correcoes.length} sugestões automáticas
             <span class="block text-muted text-sm font-normal">Desmarcado, essas linhas são rejeitadas.</span></span>
         </label>
         <table class="w-full text-sm mt-2">
@@ -808,10 +808,24 @@
             </tr>`).join('')}
           </tbody>
         </table>` : '';
+      const secGrupos = grupos.length ? `
+        <p class="mt-6 text-white font-medium">Escolha o CEST por NCM
+          <span class="block text-muted text-sm font-normal">Uma escolha vale para todos os produtos do NCM. Sem escolha, esses produtos são rejeitados.</span></p>
+        ${grupos.map(g => `
+          <div class="mt-3 border border-line rounded-lg p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-slate-200 text-sm font-medium">NCM ${esc(g.ncm)} · ${g.produtos.length} produto(s)</p>
+              <select class="sel-cest field max-w-md" data-ncm="${esc(g.ncm)}">
+                <option value="">Não escolher (rejeitar)</option>
+                ${g.opcoes.map(o => `<option value="${esc(o.codigo)}">${esc(o.codigo)} — ${esc(o.descricao)}</option>`).join('')}
+              </select>
+            </div>
+            <p class="text-xs text-muted mt-2">${esc(g.produtos.slice(0, 5).map(p => p.produto || `linha ${p.linha}`).join(', '))}${g.produtos.length > 5 ? '…' : ''}</p>
+          </div>`).join('')}` : '';
       overlay.innerHTML = `
         <div class="bg-card border border-line rounded-2xl p-6 w-full max-w-4xl max-h-[85vh] flex flex-col">
           <p class="font-semibold text-white text-lg">Antes de gerar a planilha</p>
-          <div class="overflow-auto flex-1 mt-2">${secCorrecoes}${secAvisos}</div>
+          <div class="overflow-auto flex-1 mt-2">${secCorrecoes}${secGrupos}${secAvisos}</div>
           <div class="flex flex-wrap gap-3 justify-end mt-5">
             <button type="button" class="btn-cancelar text-muted hover:text-white text-sm px-4 py-2">Cancelar</button>
             <button type="button" class="btn-gerar bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2 rounded-lg">Gerar planilha</button>
@@ -822,6 +836,8 @@
       overlay.querySelector('.btn-gerar').onclick = () => fechar({
         aplicar: overlay.querySelector('.chk-aplicar')?.checked ?? true,
         excluir: overlay.querySelector('.chk-excluir')?.checked ?? false,
+        cests: Object.fromEntries([...overlay.querySelectorAll('.sel-cest')]
+          .filter(s => s.value).map(s => [s.dataset.ncm, s.value])),
       });
       document.body.appendChild(overlay);
     });
@@ -852,12 +868,16 @@
           }
           const correcoes = previa.data.correcoes || [];
           const avisos = previa.data.avisos || [];
-          if (correcoes.length || avisos.length) {
+          const grupos = previa.data.grupos_cest || [];
+          if (correcoes.length || avisos.length || grupos.length) {
             show('.loading', false);
-            const escolha = await perguntarAntesDeGerar(correcoes, avisos);
+            const escolha = await perguntarAntesDeGerar(correcoes, avisos, grupos);
             if (escolha === null) { show('.btn-processar', true); return; }
             show('.loading', true);
-            extra = { aplicar_sugestoes: escolha.aplicar, excluir_ncm_totvs: escolha.excluir };
+            extra = {
+              aplicar_sugestoes: escolha.aplicar, excluir_ncm_totvs: escolha.excluir,
+              cest_escolhidos: JSON.stringify(escolha.cests),
+            };
           }
         }
 

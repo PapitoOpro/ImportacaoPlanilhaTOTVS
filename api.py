@@ -2,6 +2,7 @@
 import base64
 import json
 import logging
+import re
 import shutil
 import sys
 import tempfile
@@ -127,6 +128,22 @@ async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
         shutil.rmtree(work_dir, ignore_errors=True)
 
 
+def _parse_cest_escolhidos(raw: str) -> dict[str, str]:
+    """JSON {NCM(8 dígitos): CEST(7 dígitos)} enviado pelo diálogo de confirmação."""
+    if not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="cest_escolhidos inválido") from exc
+    if not isinstance(data, dict) or not all(
+        isinstance(k, str) and re.fullmatch(r"\d{8}", k) and isinstance(v, str) and re.fullmatch(r"\d{7}", v)
+        for k, v in data.items()
+    ):
+        raise HTTPException(status_code=400, detail="cest_escolhidos inválido")
+    return data
+
+
 @app.post("/processar-regras-ncm")
 async def processar_regras_ncm(
     file: UploadFile = File(...),
@@ -137,8 +154,10 @@ async def processar_regras_ncm(
     previa: bool = Form(False),
     aplicar_sugestoes: bool = Form(True),
     excluir_ncm_totvs: bool = Form(False),
+    cest_escolhidos: str = Form(""),
 ):
     suffix = _check_extensao(file)
+    escolhidos = _parse_cest_escolhidos(cest_escolhidos)
     if regime not in REGIMES:
         raise HTTPException(status_code=400, detail="Regime tributário inválido")
     try:
@@ -161,12 +180,16 @@ async def processar_regras_ncm(
                 arquivo=Path(file.filename or "").name[:200],
                 aplicar_sugestoes=aplicar_sugestoes or previa,
                 excluir_ncm_totvs=excluir_ncm_totvs and not previa,
+                cest_escolhidos=escolhidos,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         if previa:  # só as sugestões; a planilha é gerada após a confirmação do usuário
-            return JSONResponse({"previa": True, "correcoes": result.correcoes, "avisos": result.avisos})
+            return JSONResponse({
+                "previa": True, "correcoes": result.correcoes, "avisos": result.avisos,
+                "grupos_cest": [{"ncm": ncm, **grupo} for ncm, grupo in result.grupos_cest.items()],
+            })
 
         output_path = work_dir / "regras.xlsx"
         write_regras(result.regras, output_path, _TEMPLATE_REGRAS, regime, uf, numero_loja.strip())

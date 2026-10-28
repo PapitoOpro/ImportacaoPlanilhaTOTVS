@@ -62,3 +62,17 @@ def test_uf_invalida() -> None:
     assert validate_uf(" sp ") == "SP"
     with pytest.raises(ValueError):
         validate_uf("XX")
+
+
+def test_bloco_fiscal_em_branco_vira_sugestao_no_simples() -> None:
+    df = _df([{"TRIBUTO": "", "CFOP": "", "CST OU CSOSN": ""}])
+    result = build_regras(df, "1")
+    regra = result.regras[0]
+    assert (regra.tributo, regra.cfop, regra.cst_csosn) == ("I", "5102", "102")
+    assert {c["campo"] for c in result.correcoes} == {"TRIBUTO", "CFOP", "CST ou CSOSN"}
+
+
+def test_bloco_fiscal_em_branco_rejeita_sem_sugestoes_ou_no_normal() -> None:
+    df = _df([{"TRIBUTO": "", "CFOP": "", "CST OU CSOSN": ""}])
+    assert not build_regras(df, "1", aplicar_sugestoes=False).regras
+    assert not build_regras(df, "3").regras

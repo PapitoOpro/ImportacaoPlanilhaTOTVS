@@ -51,6 +51,10 @@ _COL_PIS = ("CST PIS", "PIS CALCULO", "ALIQUOTA PIS")
 _COL_COFINS = ("CST COFINS", "COFINS CALCULO", "ALIQUOTA COFINS")
 
 _TIPO_ITEM_PADRAO = "00"  # Mercadoria para Revenda
+# Sugestão (só Simples) quando o cliente deixa o bloco fiscal em branco; espelha TEMPLATE_DEFAULTS de config.py
+_CFOP_PADRAO = "5102"
+_CSOSN_PADRAO = "102"
+_TRIBUTO_PADRAO = "I"
 _FIRST_DATA_ROW = 3       # linha 1 = seções, linha 2 = cabeçalho na planilha do cliente
 
 
@@ -77,6 +81,7 @@ class ResultadoRegras:
     analise: list[dict[str, Any]] = field(default_factory=list)
     correcoes: list[dict[str, Any]] = field(default_factory=list)
     avisos: list[dict[str, Any]] = field(default_factory=list)
+    grupos_cest: dict[str, dict[str, Any]] = field(default_factory=dict)  # NCM → {opcoes, produtos} sem CEST definido
     base_fiscal_disponivel: bool = False
 
 
@@ -132,12 +137,18 @@ def _parse_contribuicao(
 
 
 def _parse_row(
-    row: pd.Series, linha: int, regime: str
-) -> tuple[RegraFiscal | None, list[ValidationError]]:
+    row: pd.Series, linha: int, regime: str, preencher: bool = False
+) -> tuple[RegraFiscal | None, list[ValidationError], list[dict[str, Any]]]:
+    """Com `preencher` (só Simples), Tributo/CFOP/CSOSN em branco viram sugestão em vez de erro."""
     errors: list[ValidationError] = []
+    sugestoes: list[dict[str, Any]] = []
+    preencher = preencher and regime in _SIMPLES
 
     def err(campo: str, valor: str, motivo: str) -> None:
         errors.append(ValidationError(row=linha, field=campo, value=valor, reason=motivo))
+
+    def sugerir(campo: str, para: str, motivo: str) -> None:
+        sugestoes.append({"linha": linha, "campo": campo, "de": "", "para": para, "motivo": motivo})
 
     ncm_raw = _get(row, _COL_NCM)
     ncm = normalize_ncm(ncm_raw)
@@ -152,11 +163,14 @@ def _parse_row(
 
     tributo_raw = _get(row, _COL_TRIBUTO)
     tributo = _TRIBUTO_MAP.get(_norm_text(tributo_raw), "")
+    imposto_raw = _get(row, _COL_IMPOSTO)
+    imposto = _to_float(imposto_raw)
+    if not tributo_raw and preencher:
+        tributo = "T" if imposto else _TRIBUTO_PADRAO
+        sugerir("TRIBUTO", tributo, "Tributo em branco; preenchido conforme o ICMS informado (T se houver, senão I)")
     if not tributo:
         err("TRIBUTO", tributo_raw, "Tributo inválido (use T, I, S, N ou F)")
 
-    imposto_raw = _get(row, _COL_IMPOSTO)
-    imposto = _to_float(imposto_raw)
     if imposto is None:
         if tributo in _TRIBUTO_EXIGE_IMPOSTO:
             err("IMPOSTO (% ICMS)", imposto_raw, "Obrigatório quando Tributo = T ou S")
@@ -164,11 +178,17 @@ def _parse_row(
 
     cfop_raw = _get(row, _COL_CFOP)
     cfop = _digits(cfop_raw)
+    if not cfop_raw and preencher:
+        cfop = _CFOP_PADRAO
+        sugerir("CFOP", cfop, "CFOP em branco; preenchido com o padrão de venda do Simples Nacional")
     if len(cfop) != 4:
         err("CFOP", cfop_raw, "CFOP deve ter 4 dígitos")
 
     cst_raw = _get(row, _COL_CST)
     cst_digits = _digits(cst_raw)
+    if not cst_raw and preencher:
+        cst_digits = _CSOSN_PADRAO
+        sugerir("CST ou CSOSN", cst_digits, "CSOSN em branco; preenchido com o padrão de venda do Simples Nacional")
     if regime in _SIMPLES:
         cst_csosn = cst_digits.zfill(3) if cst_digits else ""
         if len(cst_csosn) != 3:
@@ -182,7 +202,7 @@ def _parse_row(
     regime_normal = regime not in _SIMPLES
 
     if errors:
-        return None, errors
+        return None, errors, []
 
     return RegraFiscal(
         ncm=ncm,
@@ -195,7 +215,7 @@ def _parse_row(
         reducao=reducao if reducao else None,
         pis=_parse_contribuicao(row, _COL_PIS) if regime_normal else None,
         cofins=_parse_contribuicao(row, _COL_COFINS) if regime_normal else None,
-    ), []
+    ), [], sugestoes
 
 
 # NCM nunca bloqueia: o que o TOTVS não aceitar vira aviso (ver _aviso_ncm_totvs).
@@ -299,9 +319,14 @@ def _aplicar_catalogo_totvs(
 def _aplicar_obrigatoriedade(
     service: FiscalService, linha: int, produto: str, regra: RegraFiscal, regime: str,
     reference_date: str | None, usar_totvs: bool,
+    escolhidos: dict[str, str] | None = None, grupos: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[RegraFiscal, list[ValidationError], dict[str, Any] | None]:
     """CEST vazio: só é exigido se o NCM consta no Convênio 142/18 E a operação é de ICMS-ST.
-    Fora disso fica em branco (ex.: alimento preparado, venda sem ST)."""
+    Fora disso fica em branco (ex.: alimento preparado, venda sem ST).
+
+    `escolhidos` (NCM → CEST) vale para todos os produtos do NCM; sem decisão, o produto entra em `grupos`."""
+    escolhidos = escolhidos or {}
+    grupos = grupos if grupos is not None else {}
     if regra.cest or not _exige_cest(regra, regime):
         return regra, [], None
     candidatos = _candidatos_cest(service, regra.ncm, reference_date, usar_totvs)
@@ -309,12 +334,20 @@ def _aplicar_obrigatoriedade(
         return regra, [], None  # NCM fora do Convênio (ou sem CEST aceito): não há o que preencher
 
     escolhido, ordenados = _escolher_cest(service, produto, candidatos)
+    manual = False
+    if not escolhido and escolhidos.get(regra.ncm) in ordenados:
+        escolhido, manual = escolhidos[regra.ncm], True
     if escolhido:
-        criterio = "único do NCM" if len(ordenados) == 1 else "mais aderente ao nome do produto"
+        criterio = ("escolhido por você para o NCM" if manual else
+                    "único do NCM" if len(ordenados) == 1 else "mais aderente ao nome do produto")
         return replace(regra, cest=escolhido), [], {
-            "linha": linha, "campo": "CEST", "de": "", "para": escolhido,
+            "linha": linha, "campo": "CEST", "de": "", "para": escolhido, "manual": manual,
             "motivo": f"CEST obrigatório (operação com ICMS-ST) e não informado; preenchido com o CEST {criterio}",
         }
+    grupo = grupos.setdefault(regra.ncm, {"opcoes": [
+        {"codigo": c, "descricao": info.description if (info := service.get_cest(c)) else ""} for c in ordenados
+    ], "produtos": []})
+    grupo["produtos"].append({"linha": linha, "produto": produto})
     return regra, [ValidationError(
         row=linha, field="CEST", value="",
         reason=f"CEST obrigatório (operação com ICMS-ST, Rejeição 806). Opções: {_opcoes(service, ordenados)}.",
@@ -330,6 +363,7 @@ def build_regras(
     reference_date: str | None = None,
     aplicar_sugestoes: bool = True,
     excluir_ncm_totvs: bool = False,
+    cest_escolhidos: dict[str, str] | None = None,
 ) -> ResultadoRegras:
     """Uma regra por combinação única de NCM + CEST + dados fiscais.
 
@@ -346,6 +380,7 @@ def build_regras(
     result = ResultadoRegras(base_fiscal_disponivel=service is not None)
     totvs_ativo = service is not None and service.has_totvs_catalog()
     vistos: dict[RegraFiscal, None] = {}
+    escolhidos = cest_escolhidos or {}
 
     for idx, row in df.iterrows():
         produto = _get(row, "NOME PRODUTO")
@@ -353,7 +388,7 @@ def build_regras(
             continue
         result.total_produtos += 1
         linha = int(idx) + _FIRST_DATA_ROW
-        regra, errors = _parse_row(row, linha, regime)
+        regra, errors, sugestoes = _parse_row(row, linha, regime, preencher=aplicar_sugestoes)
 
         campos_com_erro = {e.field for e in errors}
         if service is not None and not campos_com_erro & {"NCM", "CEST"}:
@@ -383,12 +418,12 @@ def build_regras(
             if totvs_ativo and not errors:
                 etapas.append(lambda r: _aplicar_catalogo_totvs(service, linha, produto, r, reference_date))
             if not errors:
-                etapas.append(
-                    lambda r: _aplicar_obrigatoriedade(service, linha, produto, r, regime, reference_date, totvs_ativo))
+                etapas.append(lambda r: _aplicar_obrigatoriedade(
+                    service, linha, produto, r, regime, reference_date, totvs_ativo, escolhidos, result.grupos_cest))
             for etapa in etapas:
                 regra_etapa, errors_etapa, correcao = etapa(regra)
                 errors.extend(errors_etapa)
-                if correcao and not aplicar_sugestoes:
+                if correcao and not aplicar_sugestoes and not correcao.get("manual"):
                     errors.append(ValidationError(
                         row=linha, field=correcao["campo"], value=correcao["de"],
                         reason=f"{correcao['motivo']}. Sugestão não aplicada: {correcao['para']}",
@@ -403,6 +438,7 @@ def build_regras(
         if errors:
             result.errors.extend(errors)
             continue
+        result.correcoes.extend(sugestoes)
         result.produtos_validos += 1
         vistos.setdefault(regra, None)
 

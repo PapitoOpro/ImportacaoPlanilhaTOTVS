@@ -481,3 +481,17 @@ def test_excluir_ncm_totvs_separa_produto_sem_derrubar_o_resto() -> None:
     assert excluido.produtos_validos == 1 and not excluido.avisos
     assert [(e.field, e.value) for e in excluido.errors] == [("NCM", "99012000")]
     assert {r.ncm for r in excluido.regras} == {"99011000"}
+
+
+def test_cest_ambiguo_vira_grupo_e_escolha_vale_para_o_ncm() -> None:
+    from fiscal import _aplicar_obrigatoriedade
+
+    amb = _FakeService({"9900100": ("Alfa", True), "9900200": ("Beta", True)})
+    grupos: dict = {}
+    _, erros, _ = _aplicar_obrigatoriedade(amb, 1, "COISA", _regra("", "S", "500"), "1", None, True, {}, grupos)
+    assert erros and [o["codigo"] for o in grupos[_regra("", "S", "500").ncm]["opcoes"]] == ["9900100", "9900200"]
+
+    ncm = _regra("", "S", "500").ncm
+    nova, erros, correcao = _aplicar_obrigatoriedade(
+        amb, 2, "COISA", _regra("", "S", "500"), "1", None, True, {ncm: "9900200"}, {})
+    assert (nova.cest, erros, correcao["manual"]) == ("9900200", [], True)
