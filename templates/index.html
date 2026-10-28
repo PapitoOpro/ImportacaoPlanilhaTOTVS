@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Importação TOTVS Food</title>
+  <title>Tools For Totvs Food</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
@@ -53,7 +53,7 @@
     <div class="h-16 flex items-center gap-3 px-6 border-b border-line">
       <div class="w-9 h-9 rounded-xl bg-accent flex items-center justify-center text-white font-bold">T</div>
       <div class="leading-tight">
-        <p class="font-bold text-white">ImportaFood</p>
+        <p class="font-bold text-white">Tools For Totvs Food</p>
         <p class="text-[11px] text-muted">TOTVS Food</p>
       </div>
     </div>
@@ -112,12 +112,25 @@
               <p class="text-sm text-muted mt-1">Gera a ImportacaoRegraNCMDadosFiscais.xlsx com validação oficial de NCM/CEST.</p>
               <p class="text-sm text-accent mt-4 group-hover:translate-x-1 transition">Converter →</p>
             </a>
-            <a href="https://www.sintegraconsulta.com.br/" target="_blank" rel="noopener noreferrer" class="group bg-card border border-line rounded-2xl p-6 hover:border-accent transition sm:col-span-2">
-              <div class="w-11 h-11 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-xl">🔎</div>
-              <p class="font-semibold text-white mt-4">Consulta CNPJ do Cliente</p>
-              <p class="text-sm text-muted mt-1">Abre o Sintegra Consulta em nova aba para consultar o CNPJ e a inscrição estadual.</p>
-              <p class="text-sm text-accent mt-4 group-hover:translate-x-1 transition">Consultar ↗</p>
-            </a>
+            <form id="homeBusca" class="bg-card border border-line rounded-2xl p-6 flex flex-col">
+              <div class="w-11 h-11 rounded-xl bg-violet-500/15 text-violet-400 flex items-center justify-center text-xl">🔎</div>
+              <p class="font-semibold text-white mt-4">Consulta rápida NCM / CEST</p>
+              <p class="text-sm text-muted mt-1">Digite um NCM ou CEST e veja a validação oficial.</p>
+              <div class="flex gap-2 mt-4">
+                <input name="codigo" type="text" required maxlength="20" placeholder="NCM ou CEST" class="field" aria-label="NCM ou CEST" />
+                <button type="submit" class="bg-accent hover:bg-blue-500 text-white text-sm font-semibold px-4 rounded-lg transition">Consultar</button>
+              </div>
+            </form>
+            <div class="bg-card border border-line rounded-2xl p-6">
+              <div class="w-11 h-11 rounded-xl bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-xl">🔗</div>
+              <p class="font-semibold text-white mt-4">Ferramentas externas</p>
+              <p class="text-sm text-muted mt-1">Abrem em nova aba.</p>
+              <ul class="mt-4 flex flex-col gap-2 text-sm">
+                <li><a href="https://www.sintegraconsulta.com.br/" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">Consulta CNPJ / IE do cliente (Sintegra) ↗</a></li>
+                <li><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">Cartão CNPJ (Receita Federal) ↗</a></li>
+                <li><a href="https://www.confaz.fazenda.gov.br/" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">CONFAZ ↗</a></li>
+              </ul>
+            </div>
           </div>
           <div class="bg-card border border-line rounded-2xl p-6">
             <p class="font-semibold text-white">Fontes oficiais</p>
@@ -324,7 +337,7 @@
     </main>
 
     <footer class="px-6 py-4 border-t border-line text-xs text-muted flex justify-between">
-      <span>© 2026 ImportaFood · Importação TOTVS Food</span>
+      <span>© 2026 Tools For Totvs Food</span>
       <span>NCM: Receita Federal · CEST: CONFAZ</span>
     </footer>
   </div>
@@ -975,6 +988,18 @@
   document.getElementById('consultaForm').addEventListener('submit', e => {
     e.preventDefault();
     const f = e.target;
+    consultar(f.ncm.value, f.cest.value, f.data.value);
+  });
+
+  // Consulta rápida do dashboard: 7 dígitos = CEST, demais = NCM
+  document.getElementById('homeBusca').addEventListener('submit', e => {
+    e.preventDefault();
+    const codigo = e.target.codigo.value.trim();
+    const ehCest = codigo.replace(/\D/g, '').length === 7;
+    const f = document.getElementById('consultaForm');
+    f.ncm.value = ehCest ? '' : codigo;
+    f.cest.value = ehCest ? codigo : '';
+    location.hash = '#consulta';
     consultar(f.ncm.value, f.cest.value, f.data.value);
   });
 
