@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field, field_validator
 
 from kb_pdf import PdfConversaoError, pdf_para_artigo
-from kb_repository import ArtigoInput, KnowledgeBase
+from kb_repository import (ArtigoInput, CategoriaDestinoError, CategoriaDuplicadaError, CategoriaEmUsoError,
+                           KnowledgeBase)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,22 @@ class ArtigoPayload(BaseModel):
             arquivo_origem=self.arquivo_origem,
             autor=(self.autor or "").strip() or None,
         )
+
+
+class CategoriaPayload(BaseModel):
+    nome: str = Field(min_length=1, max_length=60)
+
+    @field_validator("nome")
+    @classmethod
+    def _normalizar(cls, v: str) -> str:
+        v = " ".join(v.split())
+        if not v:
+            raise ValueError("não pode ficar em branco")
+        return v
+
+
+class MoverPayload(BaseModel):
+    categoria_id: int = Field(gt=0)
 
 
 def _log(level: int, event: str, **kwargs: Any) -> None:
@@ -99,6 +116,48 @@ def build_router(get_kb: Any) -> APIRouter:
     def excluir(artigo_id: int, autor: str = "", kb: KnowledgeBase = Depends(get_kb)) -> dict[str, bool]:
         if not kb.excluir(artigo_id, autor[:100] or None):
             raise HTTPException(status_code=404, detail="Artigo não encontrado.")
+        return {"ok": True}
+
+    @router.patch("/artigos/{artigo_id}/categoria", dependencies=[Depends(require_admin)])
+    def mover(artigo_id: int, payload: MoverPayload, kb: KnowledgeBase = Depends(get_kb)) -> dict[str, Any]:
+        try:
+            if not kb.mover_artigo(artigo_id, payload.categoria_id):
+                raise HTTPException(status_code=404, detail="Artigo não encontrado.")
+        except CategoriaDestinoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"id": artigo_id}
+
+    @router.get("/categorias")
+    def listar_categorias(kb: KnowledgeBase = Depends(get_kb)) -> dict[str, Any]:
+        return {"categorias": kb.listar_categorias()}
+
+    @router.post("/categorias", status_code=201, dependencies=[Depends(require_admin)])
+    def criar_categoria(payload: CategoriaPayload, kb: KnowledgeBase = Depends(get_kb)) -> dict[str, Any]:
+        try:
+            return {"id": kb.criar_categoria(payload.nome)}
+        except CategoriaDuplicadaError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @router.put("/categorias/{categoria_id}", dependencies=[Depends(require_admin)])
+    def renomear_categoria(categoria_id: int, payload: CategoriaPayload,
+                           kb: KnowledgeBase = Depends(get_kb)) -> dict[str, Any]:
+        try:
+            if not kb.renomear_categoria(categoria_id, payload.nome):
+                raise HTTPException(status_code=404, detail="Categoria não encontrada.")
+        except CategoriaDuplicadaError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"id": categoria_id}
+
+    @router.delete("/categorias/{categoria_id}", dependencies=[Depends(require_admin)])
+    def excluir_categoria(categoria_id: int, destino_id: int | None = None,
+                          kb: KnowledgeBase = Depends(get_kb)) -> dict[str, bool]:
+        try:
+            if not kb.excluir_categoria(categoria_id, destino_id):
+                raise HTTPException(status_code=404, detail="Categoria não encontrada.")
+        except CategoriaEmUsoError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except CategoriaDestinoError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"ok": True}
 
     @router.post("/pdf", dependencies=[Depends(require_admin)])

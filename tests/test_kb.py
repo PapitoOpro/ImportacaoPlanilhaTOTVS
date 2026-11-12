@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from kb_api import build_router  # noqa: E402
 from kb_pdf import PdfConversaoError, pdf_para_artigo  # noqa: E402
-from kb_repository import ArtigoInput, KnowledgeBase, metadata  # noqa: E402
+from kb_repository import (ArtigoInput, CategoriaDestinoError, CategoriaDuplicadaError,  # noqa: E402
+                           CategoriaEmUsoError, KnowledgeBase, artigos, metadata, sincronizar_categorias)
 from sqlalchemy import create_engine  # noqa: E402
 
 SENHA = "senha-teste-123"
@@ -91,6 +92,58 @@ def test_crud_e_busca(kb: KnowledgeBase) -> None:
     assert not kb.excluir(999)
 
 
+def test_artigo_reaproveita_grafia_da_categoria(kb: KnowledgeBase) -> None:
+    a = kb.criar(ArtigoInput("A", "Geral", "x"))
+    b = kb.criar(ArtigoInput("B", "  GERAL ", "x"))
+    assert kb.obter(a)["categoria"] == kb.obter(b)["categoria"] == "Geral"
+    assert kb.listar_categorias() == [{"id": 1, "nome": "Geral", "total": 2}]
+
+
+def test_cadastro_de_categorias(kb: KnowledgeBase) -> None:
+    geral = kb.criar_categoria("Geral")
+    comandos = kb.criar_categoria("Comandos")
+    with pytest.raises(CategoriaDuplicadaError):
+        kb.criar_categoria("GERAL")
+    art = kb.criar(ArtigoInput("Artigo", "Geral", "x"))
+    antes = kb.obter(art)["atualizado_em"]
+
+    assert kb.renomear_categoria(geral, "Dúvidas gerais")
+    assert kb.obter(art)["categoria"] == "Dúvidas gerais"
+    assert kb.renomear_categoria(geral, "DÚVIDAS GERAIS")  # mudar só a caixa do próprio nome é permitido
+    with pytest.raises(CategoriaDuplicadaError):
+        kb.renomear_categoria(geral, "comandos")
+    assert not kb.renomear_categoria(999, "X")
+
+    with pytest.raises(CategoriaDestinoError):
+        kb.mover_artigo(art, 999)
+    assert kb.mover_artigo(art, comandos)
+    assert kb.obter(art)["categoria"] == "Comandos"
+    assert kb.obter(art)["atualizado_em"] == antes
+    assert not kb.mover_artigo(999, comandos)
+
+    with pytest.raises(CategoriaEmUsoError):
+        kb.excluir_categoria(comandos)
+    with pytest.raises(CategoriaDestinoError):
+        kb.excluir_categoria(comandos, destino_id=comandos)
+    assert kb.excluir_categoria(comandos, destino_id=geral)
+    assert kb.obter(art)["categoria"] == "DÚVIDAS GERAIS"
+    assert [c["nome"] for c in kb.listar_categorias()] == ["DÚVIDAS GERAIS"]
+    assert not kb.excluir_categoria(999)
+
+
+def test_sincronizacao_unifica_grafias_existentes(kb: KnowledgeBase) -> None:
+    with kb._engine.begin() as conn:  # dados legados: gravados antes de existir o cadastro
+        conn.execute(artigos.insert(), [
+            {"titulo": "A", "categoria": "Geral", "conteudo": "x"},
+            {"titulo": "B", "categoria": "Geral", "conteudo": "x"},
+            {"titulo": "C", "categoria": "GERAL", "conteudo": "x"},
+            {"titulo": "D", "categoria": "COMANDOS", "conteudo": "x"},
+        ])
+    sincronizar_categorias(kb._engine)
+    sincronizar_categorias(kb._engine)  # idempotente
+    assert [(c["nome"], c["total"]) for c in kb.listar_categorias()] == [("COMANDOS", 1), ("Geral", 3)]
+
+
 # ----------------------------------------------------------------------------- PDF
 
 def test_pdf_para_artigo_estrutura() -> None:
@@ -145,6 +198,33 @@ def test_leitura_publica_escrita_exige_senha(client: TestClient) -> None:
     assert client.delete(f"/api/kb/artigos/{art_id}").status_code == 401
     assert client.delete(f"/api/kb/artigos/{art_id}", headers=ADMIN).status_code == 200
     assert client.get(f"/api/kb/artigos/{art_id}").status_code == 404
+
+
+def test_api_categorias(client: TestClient) -> None:
+    assert client.post("/api/kb/categorias", json={"nome": "Fiscal"}).status_code == 401
+    fiscal = client.post("/api/kb/categorias", json={"nome": "Fiscal"}, headers=ADMIN).json()["id"]
+    assert client.post("/api/kb/categorias", json={"nome": " fiscal "}, headers=ADMIN).status_code == 409
+    assert client.post("/api/kb/categorias", json={"nome": "   "}, headers=ADMIN).status_code == 422
+    outra = client.post("/api/kb/categorias", json={"nome": "Comandos"}, headers=ADMIN).json()["id"]
+    art = client.post("/api/kb/artigos", json={"titulo": "T", "categoria": "Fiscal", "conteudo": "x"},
+                      headers=ADMIN).json()["id"]
+
+    assert client.patch(f"/api/kb/artigos/{art}/categoria", json={"categoria_id": outra}).status_code == 401
+    assert client.patch(f"/api/kb/artigos/{art}/categoria", json={"categoria_id": 999}, headers=ADMIN).status_code == 400
+    assert client.patch(f"/api/kb/artigos/999/categoria", json={"categoria_id": outra}, headers=ADMIN).status_code == 404
+    assert client.patch(f"/api/kb/artigos/{art}/categoria", json={"categoria_id": outra}, headers=ADMIN).status_code == 200
+    assert client.get(f"/api/kb/artigos/{art}").json()["categoria"] == "Comandos"
+
+    assert client.put(f"/api/kb/categorias/{outra}", json={"nome": "FISCAL"}, headers=ADMIN).status_code == 409
+    assert client.put(f"/api/kb/categorias/{outra}", json={"nome": "Scripts"}, headers=ADMIN).status_code == 200
+    assert client.put("/api/kb/categorias/999", json={"nome": "X"}, headers=ADMIN).status_code == 404
+    assert client.get(f"/api/kb/artigos/{art}").json()["categoria"] == "Scripts"
+
+    assert client.delete(f"/api/kb/categorias/{outra}", headers=ADMIN).status_code == 409  # tem artigo
+    assert client.delete(f"/api/kb/categorias/{outra}?destino_id=999", headers=ADMIN).status_code == 400
+    assert client.delete(f"/api/kb/categorias/{outra}?destino_id={fiscal}", headers=ADMIN).status_code == 200
+    assert client.delete("/api/kb/categorias/999", headers=ADMIN).status_code == 404
+    assert client.get("/api/kb/categorias").json()["categorias"] == [{"id": fiscal, "nome": "Fiscal", "total": 1}]
 
 
 def test_validacao_payload(client: TestClient) -> None:

@@ -346,6 +346,7 @@
             <div id="kbAdminBar" class="hidden flex flex-wrap items-center gap-2 mb-4 bg-card border border-line rounded-xl px-4 py-2.5">
               <span class="inline-flex items-center gap-2 text-xs text-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Modo administrador</span>
               <div class="flex-1"></div>
+              <button type="button" id="kbCatBtn" class="inline-flex items-center gap-1.5 hover:bg-panel border border-line text-slate-200 text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="folder"></span> Categorias</button>
               <button type="button" id="kbNovo" class="inline-flex items-center gap-1.5 bg-accent hover:bg-blue-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="plus"></span> Novo artigo</button>
               <button type="button" id="kbPdfBtn" class="inline-flex items-center gap-1.5 hover:bg-panel border border-line text-slate-200 text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="upload"></span> Importar PDF</button>
               <input type="file" id="kbPdf" accept="application/pdf,.pdf" class="hidden" />
@@ -363,8 +364,7 @@
                 </div>
                 <div>
                   <label class="field-label">Categoria</label>
-                  <input name="categoria" maxlength="60" list="kbCategoriasList" placeholder="Geral" class="field" />
-                  <datalist id="kbCategoriasList"></datalist>
+                  <select name="categoria" class="field"></select>
                 </div>
               </div>
               <div>
@@ -395,6 +395,26 @@
   </div>
 
 <!-- ===================== AVISO DE ENTRADA ===================== -->
+<!-- ===================== CATEGORIAS DA BASE DE CONHECIMENTO ===================== -->
+<div id="kbCatModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+     role="dialog" aria-modal="true" aria-labelledby="kbCatTitulo">
+  <div class="w-full max-w-lg bg-card border border-line rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+    <div class="flex items-start justify-between gap-3 px-6 py-4 border-b border-line">
+      <div>
+        <h2 id="kbCatTitulo" class="text-lg font-semibold text-white leading-tight">Categorias</h2>
+        <p class="text-xs text-muted mt-1">Ao renomear, os artigos acompanham a categoria.</p>
+      </div>
+      <button type="button" id="kbCatFechar" aria-label="Fechar" class="text-muted hover:text-white p-1 -mr-1"><span data-ico="x"></span></button>
+    </div>
+    <form id="kbCatNova" class="flex gap-2 px-6 py-4 border-b border-line">
+      <input name="nome" required maxlength="60" placeholder="Nome da nova categoria" aria-label="Nome da nova categoria" class="field" />
+      <button type="submit" class="inline-flex items-center gap-1.5 shrink-0 bg-accent hover:bg-blue-500 text-white text-sm font-medium px-4 rounded-lg transition"><span data-ico="plus"></span> Adicionar</button>
+    </form>
+    <div id="kbCatErro" class="hidden mx-6 mt-4 bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2 text-rose-300 text-sm"></div>
+    <div id="kbCatLista" class="flex-1 overflow-y-auto px-6 py-2"></div>
+  </div>
+</div>
+
 <div id="avisoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
      role="dialog" aria-modal="true" aria-labelledby="avisoTitulo">
   <div class="fade-in w-full max-w-xl max-h-[90vh] overflow-y-auto bg-card border border-line rounded-2xl shadow-2xl">
@@ -1099,6 +1119,7 @@
     atual: null,       // artigo aberto
     editando: null,    // id em edição (null = novo)
     rascunhoPdf: null, // {origem, arquivo_origem}
+    categorias: [],    // [{id, nome, total}] cadastradas
     carregado: false,
   };
   const kb$ = id => document.getElementById(id);
@@ -1119,6 +1140,9 @@
     copy:    '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
     book:    '<path d="M5 4h13a1 1 0 0 1 1 1v14H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M5 20.5A1.5 1.5 0 0 0 6.5 22H19"/>',
     alert:   '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/>',
+    folder:  '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    check:   '<path d="m5 12 5 5 9-10"/>',
+    x:       '<path d="M6 6l12 12M18 6 6 18"/>',
   };
   const ico = (nome, cls = 'w-4 h-4') =>
     `<svg class="${cls} shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KB_ICO[nome]}</svg>`;
@@ -1183,14 +1207,13 @@
   async function kbCarregarLista(selecionar) {
     const q = kb$('kbBusca').value.trim();
     let data;
-    try { data = await kbFetch(`/api/kb/artigos?${new URLSearchParams({ q })}`); }
-    catch (err) { kb$('kbLista').innerHTML = `<p class="text-rose-300 p-2">${esc(err.message)}</p>`; return; }
-
-    // Categorias iguais com grafia diferente ("Geral" / "GERAL") viram uma só.
-    const vistas = new Set();
-    kb$('kbCategoriasList').innerHTML = data.categorias
-      .filter(c => !vistas.has(kbChave(c)) && vistas.add(kbChave(c)))
-      .map(c => `<option value="${esc(c.trim())}">`).join('');
+    try {
+      const [artigos, cats] = await Promise.all([
+        kbFetch(`/api/kb/artigos?${new URLSearchParams({ q })}`), kbFetch('/api/kb/categorias')]);
+      data = artigos;
+      KB.categorias = cats.categorias;
+    } catch (err) { kb$('kbLista').innerHTML = `<p class="text-rose-300 p-2">${esc(err.message)}</p>`; return; }
+    kbOpcoesCategoria(kb$('kbEditor').categoria, kb$('kbEditor').categoria.value);
 
     const total = data.artigos.length;
     kb$('kbTotal').textContent = `${total} ${total === 1 ? 'artigo' : 'artigos'}`;
@@ -1229,6 +1252,14 @@
     if (alvo && (!KB.atual || KB.atual.id !== alvo)) kbAbrir(alvo);
   }
 
+  // Preenche um <select> com as categorias cadastradas; `atual` fica selecionada (padrão: Geral).
+  function kbOpcoesCategoria(select, atual = '') {
+    const nomes = KB.categorias.map(c => c.nome);
+    const alvo = kbChave(atual) || 'geral';
+    if (atual && !nomes.some(n => kbChave(n) === alvo)) nomes.push(atual);
+    select.innerHTML = nomes.map(n => `<option ${kbChave(n) === alvo ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  }
+
   function kbVazio() {
     KB.atual = null;
     kb$('kbLeitor').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-muted py-16">
@@ -1262,7 +1293,12 @@
             <span class="text-[11px] uppercase tracking-wider text-accent font-semibold">${esc(a.categoria)}</span>
             <h2 class="text-2xl font-semibold text-white mt-1.5 leading-tight tracking-tight">${esc(a.titulo)}</h2>
           </div>
-          ${KB.senha ? `<div class="flex gap-2">
+          ${KB.senha ? `<div class="flex flex-wrap items-center gap-2">
+            <label class="inline-flex items-center gap-1.5 text-muted border border-line rounded-lg pl-3 pr-1 hover:bg-panel" title="Mover para outra categoria">
+              ${ico('folder')}<select id="kbMover" aria-label="Mover para outra categoria" class="bg-transparent text-sm text-slate-200 py-1.5 pr-1 max-w-[180px] focus:outline-none cursor-pointer">
+                ${KB.categorias.map(c => `<option value="${c.id}" class="bg-card" ${kbChave(c.nome) === kbChave(a.categoria) ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
+              </select>
+            </label>
             <button type="button" id="kbEditar" class="inline-flex items-center gap-1.5 text-sm border border-line rounded-lg px-3 py-1.5 hover:bg-panel">${ico('edit')} Editar</button>
             <button type="button" id="kbExcluir" class="inline-flex items-center gap-1.5 text-sm border border-rose-500/30 text-rose-300 rounded-lg px-3 py-1.5 hover:bg-rose-500/10">${ico('trash')} Excluir</button>
           </div>` : ''}
@@ -1280,7 +1316,108 @@
       </div>`;
     kb$('kbEditar')?.addEventListener('click', () => kbAbrirEditor(a));
     kb$('kbExcluir')?.addEventListener('click', kbExcluir);
+    kb$('kbMover')?.addEventListener('change', e => kbMoverArtigo(a, Number(e.target.value)));
     kbPosRender();
+  }
+
+  async function kbMoverArtigo(artigo, categoriaId) {
+    try {
+      await kbFetch(`/api/kb/artigos/${artigo.id}/categoria`, { method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoria_id: categoriaId }) });
+      await kbCarregarLista();
+      await kbAbrir(artigo.id);
+    } catch (err) {
+      if (err.status === 401) kbSetAdmin('');
+      alert('Erro ao mover: ' + err.message);
+      kbMostrar(artigo);
+    }
+  }
+
+  // ------------------------------------------------------------- cadastro de categorias
+  function kbCatErro(msg = '') {
+    kb$('kbCatErro').textContent = msg;
+    kb$('kbCatErro').classList.toggle('hidden', !msg);
+  }
+
+  function kbCatAbrir() {
+    kbCatErro();
+    kbCatRender();
+    kb$('kbCatModal').classList.remove('hidden');
+    kb$('kbCatNova').nome.focus();
+  }
+
+  function kbCatFechar() { kb$('kbCatModal').classList.add('hidden'); }
+
+  function kbCatRender() {
+    const plural = n => `${n} ${n === 1 ? 'artigo' : 'artigos'}`;
+    const btn = 'inline-flex items-center justify-center w-9 h-9 shrink-0 rounded-lg border border-line';
+    kb$('kbCatLista').innerHTML = KB.categorias.length ? KB.categorias.map(c => `
+      <div class="kb-cat py-2.5 border-b border-line last:border-b-0" data-id="${c.id}">
+        <div class="flex items-center gap-2">
+          <input value="${esc(c.nome)}" data-original="${esc(c.nome)}" maxlength="60" aria-label="Nome da categoria" class="kb-cat-nome field !py-2" />
+          <span class="text-xs text-muted w-16 text-right shrink-0">${plural(c.total)}</span>
+          <button type="button" class="kb-cat-salvar ${btn} text-emerald-300 hover:bg-emerald-500/10 invisible" title="Salvar nome" aria-label="Salvar nome">${ico('check')}</button>
+          <button type="button" class="kb-cat-excluir ${btn} text-rose-300 hover:bg-rose-500/10" title="Excluir categoria" aria-label="Excluir categoria">${ico('trash')}</button>
+        </div>
+        <div class="kb-cat-confirma hidden mt-2 flex flex-wrap items-center gap-2 bg-panel border border-line rounded-lg px-3 py-2 text-xs text-slate-300"></div>
+      </div>`).join('') : '<p class="text-muted text-sm py-6 text-center">Nenhuma categoria cadastrada.</p>';
+
+    kb$('kbCatLista').querySelectorAll('.kb-cat').forEach(linha => {
+      const id = Number(linha.dataset.id), cat = KB.categorias.find(c => c.id === id);
+      const nome = linha.querySelector('.kb-cat-nome'), salvar = linha.querySelector('.kb-cat-salvar');
+      const mudou = () => nome.value.trim() && nome.value.trim() !== nome.dataset.original;
+      const renomear = () => mudou() && kbCatAcao(() => kbFetch(`/api/kb/categorias/${id}`, { method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: nome.value }) }));
+      nome.addEventListener('input', () => salvar.classList.toggle('invisible', !mudou()));
+      nome.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); renomear(); }
+        if (e.key === 'Escape') { e.stopPropagation(); nome.value = nome.dataset.original; salvar.classList.add('invisible'); }
+      });
+      salvar.addEventListener('click', renomear);
+      linha.querySelector('.kb-cat-excluir').addEventListener('click', () => kbCatConfirmar(linha, cat));
+    });
+  }
+
+  // Confirmação na própria linha; categoria com artigos exige escolher o destino deles.
+  function kbCatConfirmar(linha, cat) {
+    const box = linha.querySelector('.kb-cat-confirma');
+    const outras = KB.categorias.filter(c => c.id !== cat.id);
+    const acao = 'font-medium rounded-md px-2.5 py-1.5';
+    if (cat.total && !outras.length) {
+      box.innerHTML = `<span class="flex-1">Crie outra categoria para receber ${cat.total === 1 ? 'o artigo' : `os ${cat.total} artigos`} antes de excluir esta.</span>
+        <button type="button" class="kb-cat-nao ${acao} text-muted hover:text-white">Fechar</button>`;
+    } else {
+      box.innerHTML = `${cat.total
+          ? `<span>Mover ${cat.total === 1 ? '1 artigo' : `${cat.total} artigos`} para</span>
+             <select class="kb-cat-destino bg-card border border-line rounded-md px-2 py-1.5 text-slate-200 max-w-[160px]" aria-label="Categoria de destino">
+               ${outras.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>`
+          : `<span>Excluir “${esc(cat.nome)}”?</span>`}
+        <span class="flex-1"></span>
+        <button type="button" class="kb-cat-nao ${acao} text-muted hover:text-white">Cancelar</button>
+        <button type="button" class="kb-cat-sim ${acao} bg-rose-500/15 text-rose-300 hover:bg-rose-500/25">${cat.total ? 'Mover e excluir' : 'Excluir'}</button>`;
+    }
+    box.classList.remove('hidden');
+    box.querySelector('.kb-cat-nao').addEventListener('click', () => box.classList.add('hidden'));
+    box.querySelector('.kb-cat-sim')?.addEventListener('click', () => {
+      const destino = box.querySelector('.kb-cat-destino')?.value;
+      kbCatAcao(() => kbFetch(`/api/kb/categorias/${cat.id}${destino ? `?destino_id=${destino}` : ''}`, { method: 'DELETE' }));
+    });
+  }
+
+  // Executa a alteração e atualiza lista, modal e artigo aberto (sem fechar um editor em uso).
+  async function kbCatAcao(fn) {
+    kbCatErro();
+    try {
+      await fn();
+      await kbCarregarLista();
+      kbCatRender();
+      if (KB.atual && kb$('kbEditor').classList.contains('hidden')) await kbAbrir(KB.atual.id);
+      return true;
+    } catch (err) {
+      if (err.status === 401) { kbSetAdmin(''); kbCatFechar(); alert('Sessão de administrador expirada. Entre novamente.'); }
+      else kbCatErro(err.message);
+      return false;
+    }
   }
 
   // Links externos em nova aba, tabelas roláveis, botão "Copiar" nos blocos de código e sumário.
@@ -1338,7 +1475,7 @@
     const f = kb$('kbEditor');
     KB.editando = artigo?.id ?? null;
     f.titulo.value = artigo?.titulo || '';
-    f.categoria.value = artigo?.categoria || '';
+    kbOpcoesCategoria(f.categoria, artigo?.categoria || '');
     f.conteudo.value = artigo?.conteudo || '';
     kb$('kbEditorInfo').innerHTML = info;
     kb$('kbEditorInfo').classList.toggle('hidden', !info);
@@ -1410,7 +1547,18 @@
   function initKb() {
     if (KB.carregado) return;
     KB.carregado = true;
-    document.querySelectorAll('#view-kb [data-ico]').forEach(el => { el.innerHTML = ico(el.dataset.ico); });
+    document.querySelectorAll('[data-ico]').forEach(el => { el.innerHTML = ico(el.dataset.ico); });
+    kb$('kbCatBtn').addEventListener('click', kbCatAbrir);
+    kb$('kbCatFechar').addEventListener('click', kbCatFechar);
+    kb$('kbCatModal').addEventListener('click', e => { if (e.target === e.currentTarget) kbCatFechar(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') kbCatFechar(); });
+    kb$('kbCatNova').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = e.target;
+      const ok = await kbCatAcao(() => kbFetch('/api/kb/categorias', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: f.nome.value }) }));
+      if (ok) { f.reset(); f.nome.focus(); }
+    });
     let t;
     kb$('kbBusca').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => kbCarregarLista(), 300); });
     kb$('kbEntrar').addEventListener('click', async () => {
