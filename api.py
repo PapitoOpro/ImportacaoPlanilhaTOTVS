@@ -6,6 +6,7 @@ import re
 import shutil
 import sys
 import tempfile
+import threading
 from datetime import date
 from pathlib import Path
 
@@ -52,17 +53,21 @@ def _load_fiscal_service() -> FiscalService | None:
 _FISCAL = _load_fiscal_service()
 
 _KB: KnowledgeBase | None = None
+_KB_LOCK = threading.Lock()
 
 
 def get_kb() -> KnowledgeBase:
     """Conecta na primeira requisição (Supabase fora do ar não derruba as conversões)."""
     global _KB
     if _KB is None:
-        try:
-            _KB = KnowledgeBase(create_kb_engine())
-        except Exception as exc:  # noqa: BLE001 - qualquer falha de conexão vira 503
-            logger.error(json.dumps({"event": "kb_indisponivel", "erro": str(exc)}, ensure_ascii=False))
-            raise HTTPException(status_code=503, detail="Base de Conhecimento indisponível.") from exc
+        # A tela dispara requisições em paralelo: sem a trava, duas criariam as tabelas ao mesmo tempo.
+        with _KB_LOCK:
+            if _KB is None:
+                try:
+                    _KB = KnowledgeBase(create_kb_engine())
+                except Exception as exc:  # noqa: BLE001 - qualquer falha de conexão vira 503
+                    logger.error(json.dumps({"event": "kb_indisponivel", "erro": str(exc)}, ensure_ascii=False))
+                    raise HTTPException(status_code=503, detail="Base de Conhecimento indisponível.") from exc
     return _KB
 
 
