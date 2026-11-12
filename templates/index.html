@@ -36,8 +36,53 @@
     .nav-link.active .nav-dot { background: #fff; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: #263247; border-radius: 8px; }
-    /* Base de Conhecimento: mantém quebras de linha e recuos exatamente como digitados */
-    .prose p, .prose li { white-space: pre-wrap; }
+    /* ---- Base de Conhecimento ---- */
+    .kb-item { border-left: 2px solid transparent; }
+    .kb-item.active { background: #172031; color: #fff; border-left-color: #487fff; }
+    .kb-chevron { transition: transform .15s ease; }
+    .kb-group[open] .kb-chevron { transform: rotate(90deg); }
+    .kb-article { font-size: 15px; line-height: 1.7; color: #c3ccdb; max-width: 78ch; overflow-wrap: anywhere; }
+    /* mantém quebras de linha e recuos exatamente como digitados */
+    .kb-article p, .kb-article li { white-space: pre-wrap; }
+    .kb-article h1, .kb-article h2, .kb-article h3, .kb-article h4 {
+      color: #fff; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; scroll-margin-top: 5.5rem;
+    }
+    .kb-article h1 { font-size: 1.3rem; margin: 2rem 0 .75rem; }
+    .kb-article h2 { font-size: 1.125rem; margin: 2rem 0 .75rem; padding-top: 1.5rem; border-top: 1px solid #263247; }
+    .kb-article h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
+    .kb-article h4 { font-size: .9rem; margin: 1.25rem 0 .5rem; color: #cbd5e1; }
+    .kb-article h1 + h2, .kb-article h2 + h2, .kb-article h2 + h3, .kb-article h3 + h3 {
+      margin-top: .75rem; padding-top: 0; border-top: 0;
+    }
+    .kb-article > :first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    .kb-article > :last-child { margin-bottom: 0; }
+    .kb-article p { margin: .75rem 0; }
+    .kb-article ul, .kb-article ol { margin: .75rem 0; padding-left: 1.4rem; }
+    .kb-article ul { list-style: disc; }
+    .kb-article ol { list-style: decimal; }
+    .kb-article li { margin: .3rem 0; padding-left: .15rem; }
+    .kb-article li::marker { color: #8a96ab; }
+    .kb-article strong { color: #fff; font-weight: 600; }
+    .kb-article a { color: #6f9bff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(111,155,255,.4); }
+    .kb-article a:hover { text-decoration-color: currentColor; }
+    .kb-article hr { border: 0; border-top: 1px solid #263247; margin: 1.75rem 0; }
+    .kb-article blockquote { margin: 1rem 0; padding: .6rem 1rem; border-left: 3px solid #487fff; background: rgba(72,127,255,.07); border-radius: 0 8px 8px 0; }
+    .kb-article blockquote p { margin: .25rem 0; }
+    .kb-article code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85em; background: #0f1623; border: 1px solid #263247; border-radius: 6px; padding: .1em .4em; color: #e2e8f0; }
+    .kb-article pre { margin: 0; padding: .9rem 1rem; background: #0f1623; border: 1px solid #263247; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+    .kb-article pre code { background: none; border: 0; padding: 0; font-size: inherit; white-space: pre; }
+    .kb-pre { position: relative; margin: 1rem 0; }
+    .kb-copy { position: absolute; top: .5rem; right: .5rem; display: inline-flex; align-items: center; gap: .35rem; font-size: 11px; color: #8a96ab; background: #1b2536; border: 1px solid #263247; border-radius: 6px; padding: .25rem .5rem; opacity: 0; transition: opacity .15s, color .15s; }
+    .kb-pre:hover .kb-copy, .kb-copy:focus-visible { opacity: 1; }
+    .kb-copy:hover { color: #fff; }
+    .kb-table { margin: 1rem 0; overflow-x: auto; border: 1px solid #263247; border-radius: 10px; }
+    .kb-article table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .kb-article th { text-align: left; font-weight: 600; color: #fff; background: #172031; }
+    .kb-article th, .kb-article td { padding: .55rem .8rem; border-bottom: 1px solid #263247; vertical-align: top; }
+    .kb-article tr:last-child td { border-bottom: 0; }
+    .kb-article img { max-width: 100%; border-radius: 8px; }
+    .kb-toc button { border-left: 1px solid #263247; }
+    .kb-toc button:hover { color: #fff; border-left-color: #487fff; }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
   </style>
@@ -282,25 +327,32 @@
 
         <div id="kbAviso" class="hidden mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-300 text-sm"></div>
 
-        <div class="flex flex-wrap items-center gap-3 mb-4">
-          <input id="kbBusca" type="search" placeholder="Buscar artigos…" class="field max-w-xs" />
-          <select id="kbCategoria" class="field max-w-[200px]"><option value="">Todas as categorias</option></select>
-          <div class="flex-1"></div>
-          <div id="kbAdminBar" class="hidden flex flex-wrap gap-2">
-            <button type="button" id="kbNovo" class="bg-accent hover:bg-blue-500 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition">+ Novo artigo</button>
-            <button type="button" id="kbPdfBtn" class="bg-card hover:bg-panel border border-line text-slate-200 text-sm font-medium px-4 py-2.5 rounded-lg transition">📄 Importar PDF</button>
-            <input type="file" id="kbPdf" accept="application/pdf,.pdf" class="hidden" />
-            <button type="button" id="kbSair" class="text-muted hover:text-white text-sm px-3 py-2.5">Sair</button>
-          </div>
-          <button type="button" id="kbEntrar" class="text-sm text-muted hover:text-white border border-line rounded-lg px-4 py-2.5">🔒 Entrar como admin</button>
-        </div>
+        <div class="grid lg:grid-cols-[300px_minmax(0,1fr)] gap-5 items-start">
+          <aside class="bg-card border border-line rounded-2xl flex flex-col max-h-[45vh] lg:max-h-[calc(100vh-6.5rem)] lg:sticky lg:top-20">
+            <div class="p-3 border-b border-line">
+              <div class="relative">
+                <span data-ico="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"></span>
+                <input id="kbBusca" type="search" placeholder="Buscar artigos…" aria-label="Buscar artigos" class="field !pl-9" />
+              </div>
+            </div>
+            <nav id="kbLista" class="flex-1 overflow-y-auto p-2 text-sm" aria-label="Artigos"></nav>
+            <div class="px-4 py-2.5 border-t border-line flex items-center justify-between gap-2 text-xs text-muted">
+              <span id="kbTotal"></span>
+              <button type="button" id="kbEntrar" class="inline-flex items-center gap-1.5 hover:text-white"><span data-ico="lock"></span> Entrar como admin</button>
+            </div>
+          </aside>
 
-        <div class="grid lg:grid-cols-3 gap-4">
-          <div class="bg-card border border-line rounded-2xl p-4 max-h-[70vh] overflow-y-auto">
-            <div id="kbLista" class="flex flex-col gap-1 text-sm"></div>
-          </div>
-          <div class="lg:col-span-2">
-            <div id="kbLeitor" class="bg-card border border-line rounded-2xl p-6 min-h-[300px]"></div>
+          <div class="min-w-0">
+            <div id="kbAdminBar" class="hidden flex flex-wrap items-center gap-2 mb-4 bg-card border border-line rounded-xl px-4 py-2.5">
+              <span class="inline-flex items-center gap-2 text-xs text-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Modo administrador</span>
+              <div class="flex-1"></div>
+              <button type="button" id="kbNovo" class="inline-flex items-center gap-1.5 bg-accent hover:bg-blue-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="plus"></span> Novo artigo</button>
+              <button type="button" id="kbPdfBtn" class="inline-flex items-center gap-1.5 hover:bg-panel border border-line text-slate-200 text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="upload"></span> Importar PDF</button>
+              <input type="file" id="kbPdf" accept="application/pdf,.pdf" class="hidden" />
+              <button type="button" id="kbSair" class="text-muted hover:text-white text-sm px-2 py-2">Sair</button>
+            </div>
+
+            <div id="kbLeitor" class="bg-card border border-line rounded-2xl p-6 md:p-8 min-h-[300px]"></div>
 
             <form id="kbEditor" class="hidden bg-card border border-line rounded-2xl p-6 flex flex-col gap-4">
               <div id="kbEditorInfo" class="hidden bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-blue-300"></div>
@@ -324,7 +376,7 @@
                   </div>
                 </div>
                 <textarea name="conteudo" required rows="18" class="field font-mono text-xs leading-relaxed"></textarea>
-                <div id="kbPreview" class="hidden prose prose-invert prose-sm max-w-none bg-panel border border-line rounded-lg p-4 min-h-[300px]"></div>
+                <div id="kbPreview" class="hidden kb-article !max-w-none bg-panel border border-line rounded-lg p-4 min-h-[300px]"></div>
               </div>
               <div class="flex justify-end gap-3">
                 <button type="button" id="kbCancelar" class="text-muted hover:text-white text-sm px-4 py-2.5">Cancelar</button>
@@ -1054,6 +1106,41 @@
     ? DOMPurify.sanitize(marked.parse(md || ''))
     : `<pre class="whitespace-pre-wrap">${esc(md)}</pre>`;
 
+  const KB_ICO = {
+    search:  '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    lock:    '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    plus:    '<path d="M12 5v14M5 12h14"/>',
+    upload:  '<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>',
+    chevron: '<path d="m9 6 6 6-6 6"/>',
+    file:    '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    clock:   '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    edit:    '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    trash:   '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+    copy:    '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+    book:    '<path d="M5 4h13a1 1 0 0 1 1 1v14H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M5 20.5A1.5 1.5 0 0 0 6.5 22H19"/>',
+    alert:   '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17.5v.01"/>',
+  };
+  const ico = (nome, cls = 'w-4 h-4') =>
+    `<svg class="${cls} shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KB_ICO[nome]}</svg>`;
+  const kbCmp = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true }).compare;
+  const kbChave = cat => (cat || '').trim().toLocaleLowerCase('pt-BR');
+
+  // HTTP sem TLS não expõe navigator.clipboard: cai no execCommand.
+  async function kbCopiar(texto) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(texto); return true; }
+    } catch (_) { /* tenta o fallback */ }
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
   async function kbFetch(url, opts = {}) {
     const headers = { ...(opts.headers || {}) };
     if (KB.senha) headers['X-Admin-Password'] = KB.senha;
@@ -1080,75 +1167,159 @@
       const avisos = [];
       if (st.banco === 'sqlite') avisos.push('Artigos salvos em banco local (SQLite). Configure DATABASE_URL do Supabase no servidor para não perder os artigos a cada deploy.');
       if (!st.edicao_habilitada) avisos.push('Edição desabilitada: defina KB_ADMIN_PASSWORD no servidor.');
-      kb$('kbAviso').innerHTML = avisos.map(a => `⚠️ ${esc(a)}`).join('<br>');
-      kb$('kbAviso').classList.toggle('hidden', !avisos.length);
+      kbAvisos(avisos);
       kb$('kbEntrar').classList.toggle('hidden', !st.edicao_habilitada || !!KB.senha);
     } catch (err) {
-      kb$('kbAviso').textContent = `⚠️ ${err.message}`;
-      kb$('kbAviso').classList.remove('hidden');
+      kbAvisos([err.message]);
     }
   }
 
+  function kbAvisos(avisos) {
+    kb$('kbAviso').innerHTML = avisos
+      .map(a => `<p class="flex items-start gap-2">${ico('alert', 'w-4 h-4 mt-0.5')}<span>${esc(a)}</span></p>`).join('');
+    kb$('kbAviso').classList.toggle('hidden', !avisos.length);
+  }
+
   async function kbCarregarLista(selecionar) {
-    const params = new URLSearchParams({ q: kb$('kbBusca').value.trim(), categoria: kb$('kbCategoria').value });
+    const q = kb$('kbBusca').value.trim();
     let data;
-    try { data = await kbFetch(`/api/kb/artigos?${params}`); }
+    try { data = await kbFetch(`/api/kb/artigos?${new URLSearchParams({ q })}`); }
     catch (err) { kb$('kbLista').innerHTML = `<p class="text-rose-300 p-2">${esc(err.message)}</p>`; return; }
 
-    const catSel = kb$('kbCategoria'), atualCat = catSel.value;
-    catSel.innerHTML = '<option value="">Todas as categorias</option>' +
-      data.categorias.map(c => `<option ${c === atualCat ? 'selected' : ''}>${esc(c)}</option>`).join('');
-    kb$('kbCategoriasList').innerHTML = data.categorias.map(c => `<option value="${esc(c)}">`).join('');
+    // Categorias iguais com grafia diferente ("Geral" / "GERAL") viram uma só.
+    const vistas = new Set();
+    kb$('kbCategoriasList').innerHTML = data.categorias
+      .filter(c => !vistas.has(kbChave(c)) && vistas.add(kbChave(c)))
+      .map(c => `<option value="${esc(c.trim())}">`).join('');
 
-    if (!data.artigos.length) {
-      kb$('kbLista').innerHTML = '<p class="text-muted p-2">Nenhum artigo encontrado.</p>';
+    const total = data.artigos.length;
+    kb$('kbTotal').textContent = `${total} ${total === 1 ? 'artigo' : 'artigos'}`;
+    if (!total) {
+      kb$('kbLista').innerHTML = `<p class="text-muted px-3 py-6 text-center">${q ? `Nenhum resultado para “${esc(q)}”.` : 'Nenhum artigo ainda.'}</p>`;
       if (!KB.atual) kbVazio();
       return;
     }
-    let cat = null;
-    kb$('kbLista').innerHTML = data.artigos.map(a => {
-      const cab = a.categoria !== cat ? `<p class="px-2 pt-3 pb-1 text-[11px] font-semibold text-muted uppercase tracking-wider">${esc(cat = a.categoria)}</p>` : '';
-      return `${cab}<button type="button" data-id="${a.id}" class="kb-item text-left px-3 py-2 rounded-lg hover:bg-panel text-slate-300 ${KB.atual?.id === a.id ? 'bg-panel text-white' : ''}">
-        ${a.origem === 'pdf' ? '📄 ' : ''}${esc(a.titulo)}</button>`;
-    }).join('');
-    kb$('kbLista').querySelectorAll('.kb-item').forEach(b => b.onclick = () => kbAbrir(Number(b.dataset.id)));
-    const alvo = selecionar ?? KB.atual?.id ?? data.artigos[0].id;
+
+    const grupos = new Map();
+    for (const a of data.artigos) {
+      const chave = kbChave(a.categoria);
+      if (!grupos.has(chave)) grupos.set(chave, { nome: a.categoria.trim(), itens: [] });
+      grupos.get(chave).itens.push(a);
+    }
+    const lista = [...grupos.values()].sort((a, b) => kbCmp(a.nome, b.nome));
+    lista.forEach(g => g.itens.sort((a, b) => kbCmp(a.titulo, b.titulo)));
+
+    kb$('kbLista').innerHTML = lista.map(g => `
+      <details class="kb-group" open>
+        <summary class="flex items-center gap-2 px-2 py-2 cursor-pointer select-none text-[11px] font-semibold text-muted uppercase tracking-wider hover:text-slate-200">
+          <span class="kb-chevron">${ico('chevron', 'w-3 h-3')}</span>
+          <span class="flex-1 truncate">${esc(g.nome)}</span>
+          <span class="bg-panel border border-line rounded-full px-2 py-0.5 text-[10px] font-medium tracking-normal">${g.itens.length}</span>
+        </summary>
+        <div class="flex flex-col gap-0.5 pb-2">
+          ${g.itens.map(a => `<button type="button" data-id="${a.id}" class="kb-item w-full text-left px-3 py-2 rounded-r-lg leading-snug text-slate-300 hover:bg-panel hover:text-white ${KB.atual?.id === a.id ? 'active' : ''}">${esc(a.titulo)}</button>`).join('')}
+        </div>
+      </details>`).join('');
+    kb$('kbLista').querySelectorAll('.kb-item').forEach(b => b.onclick = async () => {
+      await kbAbrir(Number(b.dataset.id));
+      if (window.innerWidth < 1024) kb$('kbLeitor').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else window.scrollTo({ top: 0 });
+    });
+    const alvo = selecionar ?? KB.atual?.id ?? lista[0].itens[0].id;
     if (alvo && (!KB.atual || KB.atual.id !== alvo)) kbAbrir(alvo);
   }
 
   function kbVazio() {
     KB.atual = null;
     kb$('kbLeitor').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-muted py-16">
-      <p class="text-4xl">📚</p><p class="mt-3">Nenhum artigo ainda.</p>
+      ${ico('book', 'w-10 h-10')}<p class="mt-4 text-slate-300">Nenhum artigo ainda.</p>
       <p class="text-xs mt-1">Entre como admin para criar um artigo ou importar um PDF.</p></div>`;
   }
 
   async function kbAbrir(id) {
     try { kbMostrar(await kbFetch(`/api/kb/artigos/${id}`)); }
     catch (err) { kb$('kbLeitor').innerHTML = `<p class="text-rose-300">${esc(err.message)}</p>`; }
-    kb$('kbLista').querySelectorAll('.kb-item').forEach(b =>
-      b.classList.toggle('bg-panel', Number(b.dataset.id) === id));
+    kb$('kbLista').querySelectorAll('.kb-item').forEach(b => {
+      const ativo = Number(b.dataset.id) === id;
+      b.classList.toggle('active', ativo);
+      if (ativo) {  // rola só a lista (scrollIntoView rolaria a página inteira)
+        const lista = kb$('kbLista'), r = b.getBoundingClientRect(), l = lista.getBoundingClientRect();
+        if (r.top < l.top || r.bottom > l.bottom) lista.scrollTop += r.top - l.top - l.height / 2;
+      }
+    });
   }
 
   function kbMostrar(a) {
     KB.atual = a;
     kbFecharEditor();
     const data = a.atualizado_em ? new Date(a.atualizado_em).toLocaleDateString('pt-BR') : '';
+    const minutos = Math.max(1, Math.round((a.conteudo || '').trim().split(/\s+/).length / 200));
+    const meta = (icone, texto) => `<span class="inline-flex items-center gap-1.5">${ico(icone, 'w-3.5 h-3.5')}${esc(texto)}</span>`;
     kb$('kbLeitor').innerHTML = `
-      <div class="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4 mb-5">
-        <div>
-          <span class="text-[11px] uppercase tracking-wider text-accent font-semibold">${esc(a.categoria)}</span>
-          <h2 class="text-2xl font-semibold text-white mt-1">${esc(a.titulo)}</h2>
-          <p class="text-xs text-muted mt-1">Atualizado em ${esc(data)}${a.autor ? ` · ${esc(a.autor)}` : ''}${a.arquivo_origem ? ` · origem: ${esc(a.arquivo_origem)}` : ''}</p>
+      <header class="border-b border-line pb-5 mb-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <span class="text-[11px] uppercase tracking-wider text-accent font-semibold">${esc(a.categoria)}</span>
+            <h2 class="text-2xl font-semibold text-white mt-1.5 leading-tight tracking-tight">${esc(a.titulo)}</h2>
+          </div>
+          ${KB.senha ? `<div class="flex gap-2">
+            <button type="button" id="kbEditar" class="inline-flex items-center gap-1.5 text-sm border border-line rounded-lg px-3 py-1.5 hover:bg-panel">${ico('edit')} Editar</button>
+            <button type="button" id="kbExcluir" class="inline-flex items-center gap-1.5 text-sm border border-rose-500/30 text-rose-300 rounded-lg px-3 py-1.5 hover:bg-rose-500/10">${ico('trash')} Excluir</button>
+          </div>` : ''}
         </div>
-        ${KB.senha ? `<div class="flex gap-2">
-          <button type="button" id="kbEditar" class="text-sm border border-line rounded-lg px-3 py-1.5 hover:bg-panel">✏️ Editar</button>
-          <button type="button" id="kbExcluir" class="text-sm border border-rose-500/30 text-rose-300 rounded-lg px-3 py-1.5 hover:bg-rose-500/10">🗑️ Excluir</button>
-        </div>` : ''}
-      </div>
-      <article class="prose prose-invert max-w-none prose-headings:text-white prose-a:text-accent">${renderMd(a.conteudo)}</article>`;
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-muted">
+          ${data ? meta('clock', `Atualizado em ${data}`) : ''}
+          ${meta('book', `${minutos} min de leitura`)}
+          ${a.autor ? `<span>${esc(a.autor)}</span>` : ''}
+          ${a.arquivo_origem ? meta('file', a.arquivo_origem) : ''}
+        </div>
+      </header>
+      <div id="kbCorpo" class="xl:grid xl:grid-cols-[minmax(0,1fr)_200px] xl:gap-10 items-start">
+        <article id="kbArtigo" class="kb-article">${renderMd(a.conteudo)}</article>
+        <nav id="kbSumario" class="kb-toc hidden xl:block sticky top-20 max-h-[calc(100vh-7rem)] overflow-y-auto text-xs" aria-label="Nesta página"></nav>
+      </div>`;
     kb$('kbEditar')?.addEventListener('click', () => kbAbrirEditor(a));
     kb$('kbExcluir')?.addEventListener('click', kbExcluir);
+    kbPosRender();
+  }
+
+  // Links externos em nova aba, tabelas roláveis, botão "Copiar" nos blocos de código e sumário.
+  function kbPosRender() {
+    const art = kb$('kbArtigo'), nav = kb$('kbSumario');
+    art.querySelectorAll('a[href^="http"]').forEach(l => { l.target = '_blank'; l.rel = 'noopener noreferrer'; });
+    art.querySelectorAll('table').forEach(t => {
+      const box = document.createElement('div');
+      box.className = 'kb-table';
+      t.replaceWith(box);
+      box.appendChild(t);
+    });
+    art.querySelectorAll('pre').forEach(pre => {
+      const box = document.createElement('div');
+      box.className = 'kb-pre';
+      pre.replaceWith(box);
+      box.appendChild(pre);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'kb-copy';
+      btn.innerHTML = `${ico('copy', 'w-3.5 h-3.5')}<span>Copiar</span>`;
+      btn.onclick = async () => {
+        const ok = await kbCopiar(pre.innerText);
+        btn.lastChild.textContent = ok ? 'Copiado' : 'Não foi possível copiar';
+        setTimeout(() => { btn.lastChild.textContent = 'Copiar'; }, 1500);
+      };
+      box.appendChild(btn);
+    });
+
+    const titulos = [...art.querySelectorAll('h1, h2, h3')].filter(h => h.textContent.trim());
+    if (titulos.length < 3) {
+      nav.remove();
+      kb$('kbCorpo').className = '';
+      return;
+    }
+    nav.innerHTML = `<p class="text-[11px] font-semibold text-muted uppercase tracking-wider mb-2">Nesta página</p>` +
+      titulos.map((h, i) => `<button type="button" data-i="${i}" class="block w-full text-left py-1 pr-1 leading-snug text-muted ${h.tagName === 'H3' ? 'pl-6' : 'pl-3'}">${esc(h.textContent.trim())}</button>`).join('');
+    nav.querySelectorAll('button').forEach(b =>
+      b.onclick = () => titulos[Number(b.dataset.i)].scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   function kbTab(tab) {
@@ -1219,19 +1390,19 @@
   async function kbImportarPdf(file) {
     const form = new FormData();
     form.append('file', file);
-    const btn = kb$('kbPdfBtn');
-    btn.disabled = true; btn.textContent = '⏳ Convertendo…';
+    const btn = kb$('kbPdfBtn'), rotulo = btn.innerHTML;
+    btn.disabled = true; btn.textContent = 'Convertendo…';
     try {
       const r = await kbFetch('/api/kb/pdf', { method: 'POST', body: form });
       KB.rascunhoPdf = { origem: 'pdf', arquivo_origem: r.arquivo_origem };
       kbAbrirEditor({ titulo: r.titulo, conteudo: r.conteudo },
-        `📄 Rascunho gerado de <b>${esc(r.arquivo_origem)}</b> (${r.paginas} página(s)). Revise o texto, ajuste título/categoria e clique em <b>Salvar artigo</b>. Tabelas e imagens do PDF não são importadas.`);
+        `Rascunho gerado de <b>${esc(r.arquivo_origem)}</b> (${r.paginas} página(s)). Revise o texto, ajuste título/categoria e clique em <b>Salvar artigo</b>. Tabelas e imagens do PDF não são importadas.`);
       KB.editando = null;
     } catch (err) {
       if (err.status === 401) kbSetAdmin('');
       alert('Não foi possível converter o PDF: ' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = '📄 Importar PDF';
+      btn.disabled = false; btn.innerHTML = rotulo;
       kb$('kbPdf').value = '';
     }
   }
@@ -1239,9 +1410,9 @@
   function initKb() {
     if (KB.carregado) return;
     KB.carregado = true;
+    document.querySelectorAll('#view-kb [data-ico]').forEach(el => { el.innerHTML = ico(el.dataset.ico); });
     let t;
     kb$('kbBusca').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => kbCarregarLista(), 300); });
-    kb$('kbCategoria').addEventListener('change', () => kbCarregarLista());
     kb$('kbEntrar').addEventListener('click', async () => {
       const senha = prompt('Senha de administrador da Base de Conhecimento:');
       if (!senha) return;
