@@ -24,6 +24,7 @@ from fiscal_db import connect as connect_fiscal_db
 from fiscal_service import FiscalService
 from kb_api import build_router as build_kb_router
 from kb_repository import KnowledgeBase, create_kb_engine
+from obrigatorios import garantir_obrigatorios
 from reader import read_client_file
 from totvs_catalog import registrar_recusados
 from transformer import transform
@@ -101,6 +102,7 @@ async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
         input_path.write_bytes(content)
 
         df = read_client_file(input_path)
+        df, correcoes = garantir_obrigatorios(df)
         df = transform(df, COLUMN_MAP, TEMPLATE_DEFAULTS, TEMPLATE_COLUMNS, FIELD_FILL_DEFAULTS)
         errors = validate(df, REQUIRED_FIELDS, FIELD_RULES)
 
@@ -127,6 +129,7 @@ async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
                 {"linha": e.row, "campo": e.field, "valor": e.value, "motivo": e.reason}
                 for e in errors
             ],
+            "correcoes":      correcoes,
             "arquivo":        arquivo_b64,
             "arquivo_erros":  arquivo_erros_b64,
         })
