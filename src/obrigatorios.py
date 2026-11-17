@@ -9,15 +9,29 @@ from typing import Any
 
 import pandas as pd
 
+from validator import ValidationError
+
 COL_CODIGO = "CODIGO PRODUTO VENDA"
 COL_NOME = "NOME PRODUTO"
+COL_UNIDADE = "UNIDADE DE MEDIDA"
+COL_PRECO = "PRECO DE VENDA"
+COL_GRUPO = "GRUPO"
+COL_SUBGRUPO = "SUBGRUPO"
 _FIRST_DATA_ROW = 3  # linha 1 = seções, linha 2 = cabeçalho na planilha do cliente
+
+# Padrão dos itens incluídos pelo sistema
+_UNIDADE = "UN"
+_PRECO = "1,00"
+_GRUPO = "Taxas"
 
 # (código, sigla, prefixos que identificam o mesmo item com outro nome)
 OBRIGATORIOS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("999", "TDS", ("TDS", "TAXA DE SERVICO", "TAXA SERVICO")),
     ("997", "TDE", ("TDE", "TAXA DE ENTREGA", "TAXA ENTREGA")),
 )
+
+
+_CODIGOS = {c for c, _, _ in OBRIGATORIOS}
 
 
 def _norm(value: Any) -> str:
@@ -39,10 +53,26 @@ def _correcao(linha: int | str, campo: str, de: str, para: str, motivo: str) -> 
     return {"linha": linha, "campo": campo, "de": de, "para": para, "motivo": motivo}
 
 
-def garantir_obrigatorios(df: pd.DataFrame) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
-    """Confere 999 TDS e 997 TDE: inclui se faltar; se existir com outro nome/código, corrige e informa."""
+def _grafia_existente(df: pd.DataFrame, coluna: str, padrao: str) -> str:
+    """Usa a grafia que o cliente já tem para o grupo (ex.: TAXAS) para não duplicar na aba de grupos."""
+    if coluna in df.columns:
+        for valor in df[coluna].dropna():
+            if _norm(valor) == _norm(padrao):
+                return str(valor).strip()
+    return padrao
+
+
+def garantir_obrigatorios(
+    df: pd.DataFrame,
+) -> tuple[pd.DataFrame, list[dict[str, Any]], list[ValidationError]]:
+    """Confere 999 TDS e 997 TDE.
+
+    - ausente: inclui (UN, R$ 1,00, grupo/subgrupo Taxas) e informa;
+    - código usado por outro produto: rejeita a linha e pede a correção na planilha do cliente;
+    - nome certo com código errado: corrige o código e informa."""
     df = df.copy()
     correcoes: list[dict[str, Any]] = []
+    erros: list[ValidationError] = []
     if COL_CODIGO not in df.columns:
         df[COL_CODIGO] = ""
     if COL_NOME not in df.columns:
@@ -56,11 +86,11 @@ def garantir_obrigatorios(df: pd.DataFrame) -> tuple[pd.DataFrame, list[dict[str
         if por_codigo:
             for idx in por_codigo:
                 if nomes[idx] != sigla:
-                    correcoes.append(_correcao(
-                        int(idx) + _FIRST_DATA_ROW, "Nome Produto", str(df.at[idx, COL_NOME]), sigla,
-                        f"O código {codigo} é obrigatório do sistema e o nome deve ser apenas {sigla}. "
-                        "Corrija na planilha do cliente."))
-                    df.at[idx, COL_NOME] = sigla
+                    erros.append(ValidationError(
+                        row=int(idx) + _FIRST_DATA_ROW, field="Código Produto", value=codigo,
+                        reason=f"O código {codigo} é reservado do sistema para {sigla} (use só a sigla, sem descrição) "
+                               f"e aqui está em \"{df.at[idx, COL_NOME]}\". Troque o código deste produto "
+                               "na planilha do cliente."))
             continue
 
         por_nome = [i for i in df.index if any(nomes[i] == a or nomes[i].startswith(a + " ") for a in aliases)]
@@ -82,9 +112,19 @@ def garantir_obrigatorios(df: pd.DataFrame) -> tuple[pd.DataFrame, list[dict[str
             continue
 
         novo = (int(df.index.max()) + 1) if len(df.index) else 0
-        df.loc[novo, COL_CODIGO] = codigo
-        df.loc[novo, COL_NOME] = sigla
+        grupo = _grafia_existente(df, COL_GRUPO, _GRUPO)
+        subgrupo = _grafia_existente(df, COL_SUBGRUPO, _GRUPO)
+        df.loc[novo, [COL_CODIGO, COL_NOME, COL_UNIDADE, COL_PRECO, COL_GRUPO, COL_SUBGRUPO]] = [
+            codigo, sigla, _UNIDADE, _PRECO, grupo, subgrupo]
         correcoes.append(_correcao(
             "—", "Código Produto", "", codigo,
             f"Item obrigatório do sistema ausente na planilha; incluído {codigo} {sigla}."))
-    return df, correcoes
+    return df, correcoes, erros
+
+
+def ocultar_do_cardapio(df: pd.DataFrame) -> pd.DataFrame:
+    """Taxas (999/997) nunca aparecem no cardápio. Opera na planilha já transformada (colunas do template)."""
+    df = df.copy()
+    mask = df["Código Produto"].map(_codigo).isin(_CODIGOS)
+    df.loc[mask, "Não Exibir no Cardápio"] = "1"
+    return df
