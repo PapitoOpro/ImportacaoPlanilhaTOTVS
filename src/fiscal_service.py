@@ -178,6 +178,24 @@ class FiscalService:
                 return infos
         return []
 
+    def ncm_generics(self, ncm: str, reference_date: date | str | None = None, limite: int = 8) -> list[NcmInfo]:
+        """NCMs genéricos da mesma posição (4 dígitos) vigentes na Receita e aceitos pelo TOTVS, do mais
+        parecido ao menos. Alternativa quando não há sucessor: o produto entra na planilha e o NCM é ajustado depois."""
+        code = normalize_ncm(ncm)
+        if not code:
+            return []
+        rows = self._conn.execute(
+            f"SELECT DISTINCT codigo FROM ncm WHERE codigo LIKE :p AND codigo <> :c AND {_VIGENTE} ORDER BY codigo",
+            {"p": code[:4] + "%", "c": code, "d": _ref(reference_date)},
+        ).fetchall()
+
+        def proximidade(c: str) -> int:
+            return len(next((c[:n] for n in range(8, 0, -1) if code.startswith(c[:n])), ""))
+
+        infos = [i for r in rows if (i := self.get_ncm(r["codigo"], reference_date))
+                 and self.in_totvs_catalog("NCM", i.code)]
+        return sorted(infos, key=lambda i: (-proximidade(i.code), i.code))[:limite]
+
     def has_data(self) -> bool:
         tipos = {r["tipo"] for r in self._conn.execute("SELECT DISTINCT tipo FROM importacao")}
         return {"NCM", "CEST"} <= tipos

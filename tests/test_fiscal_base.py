@@ -355,6 +355,9 @@ class _FakeService:
     def ncm_successors(self, ncm: str, ref: str | None = None) -> list:
         return []
 
+    def ncm_generics(self, ncm: str, ref: str | None = None) -> list:
+        return []
+
     def get_ncm(self, ncm: str, ref: str | None = None) -> None:
         return None
 
@@ -566,7 +569,7 @@ def test_ncm_vigente_fora_do_totvs_vai_para_lista_de_cadastro(svc_totvs: FiscalS
     from fiscal import write_ncm_cadastrar_report
 
     result = _build(svc_totvs, "99021020")
-    assert result.regras[0].ncm == "99021020" and not result.grupos_ncm
+    assert result.regras[0].ncm == "99021020"
     assert result.ncms_totvs["99021020"]["vigente"] is True
     assert "vigente fora do TOTVS" in result.ncms_totvs["99021020"]["descricao"]
 
@@ -577,3 +580,19 @@ def test_ncm_vigente_fora_do_totvs_vai_para_lista_de_cadastro(svc_totvs: FiscalS
     assert [c.value for c in ws[2]][:4] == [
         "99021020", "Grupo > Item vigente fora do TOTVS",
         "Vigente na Receita, falta cadastrar no TOTVS", 1]
+
+
+def test_ncm_vigente_fora_do_totvs_oferece_generico_da_mesma_posicao(svc_totvs: FiscalService) -> None:
+    # 9902.10.20 é vigente mas o TOTVS não aceita: os genéricos são os da posição 9902 aceitos pelo TOTVS
+    assert [i.code for i in svc_totvs.ncm_generics("99021020", "2026-01-02")] == ["99021010", "99021090"]
+
+    result = _build(svc_totvs, "99021020")
+    assert result.regras[0].ncm == "99021020"  # sem confirmação não troca
+    grupo = result.grupos_ncm["99021020"]
+    assert all(o["generico"] for o in grupo["opcoes"]) and grupo["sugerido"] == "99021090"
+    assert not result.avisos  # a troca oferecida substitui o aviso
+
+    result = _build(svc_totvs, "99021020", ncm_escolhidos={"99021020": "99021090"})
+    assert result.regras[0].ncm == "99021090"
+    assert "genérico" in result.correcoes[0]["motivo"]
+    assert not result.ncms_totvs and not result.avisos

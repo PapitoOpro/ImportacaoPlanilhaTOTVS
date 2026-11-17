@@ -295,21 +295,28 @@ def _aplicar_sucessor_ncm(
     service: FiscalService, linha: int, produto: str, regra: RegraFiscal, reference_date: str | None,
     escolhidos: dict[str, str], grupos: dict[str, dict[str, Any]],
 ) -> tuple[RegraFiscal, dict[str, Any] | None]:
-    """NCM extinto/desdobrado com sucessor vigente no TOTVS: só troca com a confirmação do usuário (por NCM)."""
-    sucessores = service.ncm_successors(regra.ncm, reference_date)
-    if not sucessores:
+    """NCM que o TOTVS não aceita: oferece o sucessor (NCM extinto) ou um NCM genérico aceito, e só troca
+    com a confirmação do usuário (por NCM)."""
+    candidatos = [(i, False) for i in service.ncm_successors(regra.ncm, reference_date)]
+    if not candidatos and not service.in_totvs_catalog("NCM", regra.ncm):
+        candidatos = [(i, True) for i in service.ncm_generics(regra.ncm, reference_date)]
+    if not candidatos:
         return regra, None
-    codigos = [s.code for s in sucessores]
     escolhido = escolhidos.get(regra.ncm)
-    if escolhido in codigos:
-        info = next(s for s in sucessores if s.code == escolhido)
+    achado = next(((i, g) for i, g in candidatos if i.code == escolhido), None)
+    if achado:
+        info, generico = achado
+        motivo = (f"NCM {regra.ncm} não aceito pelo TOTVS; trocado pelo NCM genérico {escolhido} "
+                  f"({_descricao_curta(info.description)}). Ajuste na manutenção em massa"
+                  if generico else
+                  f"NCM {regra.ncm} não é mais vigente; trocado por {escolhido} ({_descricao_curta(info.description)})")
         return replace(regra, ncm=escolhido), {
-            "linha": linha, "campo": "NCM", "de": regra.ncm, "para": escolhido, "manual": True,
-            "motivo": f"NCM {regra.ncm} não é mais vigente; trocado por {escolhido} ({_descricao_curta(info.description)})",
-        }
+            "linha": linha, "campo": "NCM", "de": regra.ncm, "para": escolhido, "manual": True, "motivo": motivo}
+    codigos = [i.code for i, _ in candidatos]
     grupo = grupos.setdefault(regra.ncm, {
         "sugerido": next((c for c in codigos if c.endswith("90")), codigos[0]),
-        "opcoes": [{"codigo": s.code, "descricao": _descricao_curta(s.description)} for s in sucessores],
+        "opcoes": [{"codigo": i.code, "descricao": _descricao_curta(i.description), "generico": g}
+                   for i, g in candidatos],
         "produtos": [],
     })
     grupo["produtos"].append({"linha": linha, "produto": produto})
@@ -456,7 +463,7 @@ def build_regras(
                         reason="NCM não aceito pelo TOTVS: produto separado da planilha para não derrubar a "
                                "importação. Cadastre o NCM no TOTVS e importe este produto à parte.",
                     ))
-                elif aviso:
+                elif aviso and regra.ncm not in result.grupos_ncm:  # com troca oferecida, o aviso é redundante
                     result.avisos.append(aviso)
             etapas = []
             if totvs_ativo and not errors:
