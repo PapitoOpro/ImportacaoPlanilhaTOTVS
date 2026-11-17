@@ -352,6 +352,12 @@ class _FakeService:
     def get_cest(self, code: str, ref: str | None = None) -> _FakeCest | None:
         return _FakeCest(self._c[code][0]) if code in self._c else None
 
+    def ncm_successors(self, ncm: str, ref: str | None = None) -> list:
+        return []
+
+    def get_ncm(self, ncm: str, ref: str | None = None) -> None:
+        return None
+
 
 def _regra(cest: str = "9900900", tributo: str = "T", cst: str = "102") -> "RegraFiscal":
     from fiscal import RegraFiscal
@@ -510,3 +516,64 @@ def test_grupo_cest_sugere_agua_ou_primeira_opcao() -> None:
     _aplicar_obrigatoriedade(_FakeService({"9900100": ("Alfa", True), "9900200": ("Beta", True)}),
                              1, "COISA", regra, "1", None, True, {}, sem_agua)
     assert sem_agua[regra.ncm]["sugerido"] == "9900100"
+
+
+# ----------------------------------------------------------------------------- NCM extinto: sucessor aceito pelo TOTVS
+
+@pytest.fixture()
+def svc_totvs(tmp_path: Path) -> FiscalService:
+    from totvs_catalog import import_ncm_mdic
+
+    c = connect_memory()
+    import_ncm(c, _ncm_json([
+        ("9902.10.10", "Grupo > Item sucessor A", "01/01/2022"),
+        ("9902.10.20", "Grupo > Item vigente fora do TOTVS", "01/01/2022"),
+        ("9902.10.90", "Grupo > Outros", "01/01/2022"),
+    ]), data_importacao=date(2026, 1, 1))
+    csv = tmp_path / "mdic.csv"
+    csv.write_text("Id;CodigoNCM;Descricao\n1;99021010;A\n2;99021090;Outros\n", encoding="utf-8")
+    import_ncm_mdic(c, csv)
+    return FiscalService(c)
+
+
+def _build(svc: FiscalService, ncm: str, **kw):
+    return build_regras(_planilha([{"NOME PRODUTO": "Suco", "NCM": ncm}]), "1", service=svc,
+                        reference_date="2026-01-02", **kw)
+
+
+def test_sucessores_so_vigentes_e_aceitos_pelo_totvs(svc_totvs: FiscalService) -> None:
+    assert [i.code for i in svc_totvs.ncm_successors("99021000", "2026-01-02")] == ["99021010", "99021090"]
+    assert svc_totvs.ncm_successors("99021020", "2026-01-02") == []  # vigente: nunca é trocado
+    assert svc_totvs.ncm_successors("88888888", "2026-01-02") == []  # sem parentesco
+
+
+def test_ncm_extinto_pede_confirmacao_e_nao_troca_sozinho(svc_totvs: FiscalService) -> None:
+    result = _build(svc_totvs, "99021000")
+    assert result.regras[0].ncm == "99021000"
+    assert result.grupos_ncm["99021000"]["sugerido"] == "99021090"
+    assert [o["codigo"] for o in result.grupos_ncm["99021000"]["opcoes"]] == ["99021010", "99021090"]
+    assert not [c for c in result.correcoes if c["campo"] == "NCM"]
+
+
+def test_ncm_extinto_troca_pelo_escolhido(svc_totvs: FiscalService) -> None:
+    result = _build(svc_totvs, "99021000", ncm_escolhidos={"99021000": "99021090"})
+    assert result.regras[0].ncm == "99021090"
+    assert (result.correcoes[0]["de"], result.correcoes[0]["para"]) == ("99021000", "99021090")
+    assert not result.ncms_totvs  # o NCM novo o TOTVS aceita
+
+
+def test_ncm_vigente_fora_do_totvs_vai_para_lista_de_cadastro(svc_totvs: FiscalService, tmp_path: Path) -> None:
+    from fiscal import write_ncm_cadastrar_report
+
+    result = _build(svc_totvs, "99021020")
+    assert result.regras[0].ncm == "99021020" and not result.grupos_ncm
+    assert result.ncms_totvs["99021020"]["vigente"] is True
+    assert "vigente fora do TOTVS" in result.ncms_totvs["99021020"]["descricao"]
+
+    import openpyxl
+    out = tmp_path / "cadastrar.xlsx"
+    write_ncm_cadastrar_report(result.ncms_totvs, out)
+    ws = openpyxl.load_workbook(out).active
+    assert [c.value for c in ws[2]][:4] == [
+        "99021020", "Grupo > Item vigente fora do TOTVS",
+        "Vigente na Receita, falta cadastrar no TOTVS", 1]

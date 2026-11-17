@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from config import (COLUMN_MAP, FIELD_FILL_DEFAULTS, FIELD_RULES,
                     REQUIRED_FIELDS, TEMPLATE_COLUMNS, TEMPLATE_DEFAULTS)
-from fiscal import REGIMES, build_regras, validate_uf, write_analise_report, write_regras
+from fiscal import (REGIMES, build_regras, validate_uf, write_analise_report, write_ncm_cadastrar_report,
+                    write_regras)
 from fiscal_db import connect as connect_fiscal_db
 from fiscal_service import FiscalService
 from kb_api import build_router as build_kb_router
@@ -133,19 +134,19 @@ async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
         shutil.rmtree(work_dir, ignore_errors=True)
 
 
-def _parse_cest_escolhidos(raw: str) -> dict[str, str]:
-    """JSON {NCM(8 dígitos): CEST(7 dígitos)} enviado pelo diálogo de confirmação."""
+def _parse_escolhidos(raw: str, tamanho_valor: int, campo: str) -> dict[str, str]:
+    """JSON {NCM(8 dígitos): código(tamanho_valor dígitos)} enviado pelo diálogo de confirmação."""
     if not raw.strip():
         return {}
     try:
         data = json.loads(raw)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail="cest_escolhidos inválido") from exc
+        raise HTTPException(status_code=400, detail=f"{campo} inválido") from exc
     if not isinstance(data, dict) or not all(
-        isinstance(k, str) and re.fullmatch(r"\d{8}", k) and isinstance(v, str) and re.fullmatch(r"\d{7}", v)
+        isinstance(k, str) and re.fullmatch(r"\d{8}", k) and isinstance(v, str) and re.fullmatch(rf"\d{{{tamanho_valor}}}", v)
         for k, v in data.items()
     ):
-        raise HTTPException(status_code=400, detail="cest_escolhidos inválido")
+        raise HTTPException(status_code=400, detail=f"{campo} inválido")
     return data
 
 
@@ -160,9 +161,11 @@ async def processar_regras_ncm(
     aplicar_sugestoes: bool = Form(True),
     excluir_ncm_totvs: bool = Form(False),
     cest_escolhidos: str = Form(""),
+    ncm_escolhidos: str = Form(""),
 ):
     suffix = _check_extensao(file)
-    escolhidos = _parse_cest_escolhidos(cest_escolhidos)
+    escolhidos = _parse_escolhidos(cest_escolhidos, 7, "cest_escolhidos")
+    ncm_trocas = _parse_escolhidos(ncm_escolhidos, 8, "ncm_escolhidos")
     if regime not in REGIMES:
         raise HTTPException(status_code=400, detail="Regime tributário inválido")
     try:
@@ -186,6 +189,7 @@ async def processar_regras_ncm(
                 aplicar_sugestoes=aplicar_sugestoes or previa,
                 excluir_ncm_totvs=excluir_ncm_totvs and not previa,
                 cest_escolhidos=escolhidos,
+                ncm_escolhidos=ncm_trocas,
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -194,6 +198,7 @@ async def processar_regras_ncm(
             return JSONResponse({
                 "previa": True, "correcoes": result.correcoes, "avisos": result.avisos,
                 "grupos_cest": [{"ncm": ncm, **grupo} for ncm, grupo in result.grupos_cest.items()],
+                "grupos_ncm": [{"ncm": ncm, **grupo} for ncm, grupo in result.grupos_ncm.items()],
             })
 
         output_path = work_dir / "regras.xlsx"
@@ -212,6 +217,12 @@ async def processar_regras_ncm(
             write_analise_report(result.analise, analise_path)
             arquivo_analise_b64 = base64.b64encode(analise_path.read_bytes()).decode()
 
+        arquivo_ncm_cadastrar_b64 = None
+        if result.ncms_totvs:
+            ncm_path = work_dir / "ncm_cadastrar_totvs.xlsx"
+            write_ncm_cadastrar_report(result.ncms_totvs, ncm_path)
+            arquivo_ncm_cadastrar_b64 = base64.b64encode(ncm_path.read_bytes()).decode()
+
         resumo_fiscal: dict[str, int] = {}
         for item in result.analise:
             resumo_fiscal[item["status"]] = resumo_fiscal.get(item["status"], 0) + 1
@@ -223,6 +234,9 @@ async def processar_regras_ncm(
             "correcoes":        result.correcoes,
             "avisos":           result.avisos,
             "arquivo_analise":  arquivo_analise_b64,
+            "arquivo_ncm_cadastrar": arquivo_ncm_cadastrar_b64,
+            "ncms_cadastrar": [{"ncm": ncm, "descricao": d["descricao"], "produtos": len(d["produtos"])}
+                               for ncm, d in sorted(result.ncms_totvs.items())],
             "stats": {
                 "total":      result.total_produtos,
                 "exportados": result.produtos_validos,

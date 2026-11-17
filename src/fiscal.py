@@ -83,6 +83,8 @@ class ResultadoRegras:
     correcoes: list[dict[str, Any]] = field(default_factory=list)
     avisos: list[dict[str, Any]] = field(default_factory=list)
     grupos_cest: dict[str, dict[str, Any]] = field(default_factory=dict)  # NCM → {opcoes, produtos} sem CEST definido
+    grupos_ncm: dict[str, dict[str, Any]] = field(default_factory=dict)   # NCM extinto → {opcoes, produtos} a trocar
+    ncms_totvs: dict[str, dict[str, Any]] = field(default_factory=dict)   # NCM fora do TOTVS → {descricao, produtos}
     base_fiscal_disponivel: bool = False
 
 
@@ -284,6 +286,36 @@ def _candidatos_cest(service: FiscalService, ncm: str, ref: str | None, usar_tot
     return [c.code for c in service.get_cests_by_ncm(ncm, ref)]
 
 
+def _descricao_curta(descricao: str) -> str:
+    """Últimos dois níveis da descrição oficial do NCM (a completa repete o capítulo inteiro)."""
+    return " — ".join(p.strip() for p in descricao.split(" > ")[-2:])
+
+
+def _aplicar_sucessor_ncm(
+    service: FiscalService, linha: int, produto: str, regra: RegraFiscal, reference_date: str | None,
+    escolhidos: dict[str, str], grupos: dict[str, dict[str, Any]],
+) -> tuple[RegraFiscal, dict[str, Any] | None]:
+    """NCM extinto/desdobrado com sucessor vigente no TOTVS: só troca com a confirmação do usuário (por NCM)."""
+    sucessores = service.ncm_successors(regra.ncm, reference_date)
+    if not sucessores:
+        return regra, None
+    codigos = [s.code for s in sucessores]
+    escolhido = escolhidos.get(regra.ncm)
+    if escolhido in codigos:
+        info = next(s for s in sucessores if s.code == escolhido)
+        return replace(regra, ncm=escolhido), {
+            "linha": linha, "campo": "NCM", "de": regra.ncm, "para": escolhido, "manual": True,
+            "motivo": f"NCM {regra.ncm} não é mais vigente; trocado por {escolhido} ({_descricao_curta(info.description)})",
+        }
+    grupo = grupos.setdefault(regra.ncm, {
+        "sugerido": next((c for c in codigos if c.endswith("90")), codigos[0]),
+        "opcoes": [{"codigo": s.code, "descricao": _descricao_curta(s.description)} for s in sucessores],
+        "produtos": [],
+    })
+    grupo["produtos"].append({"linha": linha, "produto": produto})
+    return regra, None
+
+
 def _aviso_ncm_totvs(service: FiscalService, linha: int, produto: str, regra: RegraFiscal) -> dict[str, Any] | None:
     """NCM que o TOTVS não aceita (fora da tabela MDIC do sistema ou recusado numa importação real).
     Só avisa: a linha continua na planilha, mas a importação vai acusar erro até o NCM ser cadastrado."""
@@ -365,6 +397,7 @@ def build_regras(
     aplicar_sugestoes: bool = True,
     excluir_ncm_totvs: bool = False,
     cest_escolhidos: dict[str, str] | None = None,
+    ncm_escolhidos: dict[str, str] | None = None,
 ) -> ResultadoRegras:
     """Uma regra por combinação única de NCM + CEST + dados fiscais.
 
@@ -406,7 +439,17 @@ def build_regras(
 
         if regra and not errors and service is not None:
             if totvs_ativo:
+                regra, troca_ncm = _aplicar_sucessor_ncm(
+                    service, linha, produto, regra, reference_date, ncm_escolhidos or {}, result.grupos_ncm)
+                if troca_ncm:
+                    result.correcoes.append(troca_ncm)
                 aviso = _aviso_ncm_totvs(service, linha, produto, regra)
+                if aviso:
+                    info = service.get_ncm(regra.ncm, reference_date)
+                    registro = result.ncms_totvs.setdefault(regra.ncm, {
+                        "descricao": info.description if info else "", "vigente": info is not None, "produtos": [],
+                    })
+                    registro["produtos"].append({"linha": linha, "produto": produto})
                 if aviso and excluir_ncm_totvs:
                     errors.append(ValidationError(
                         row=linha, field="NCM", value=regra.ncm,
@@ -539,6 +582,27 @@ _STATUS_LABEL: dict[str, str] = {
     "MULTIPLE_CEST":     "Múltiplos CESTs possíveis",
     "NEEDS_REVIEW":      "Necessita revisão",
 }
+
+
+def write_ncm_cadastrar_report(ncms: dict[str, dict[str, Any]], output_path: Path) -> None:
+    """NCMs que o TOTVS não aceita e precisam ser cadastrados lá antes da importação."""
+    rows = [
+        {
+            "NCM": ncm,
+            "Descrição NCM (oficial)": dados["descricao"] or "NCM não vigente na tabela oficial",
+            "Situação": "Vigente na Receita, falta cadastrar no TOTVS" if dados["vigente"] else "Não vigente na Receita",
+            "Qtd. produtos": len(dados["produtos"]),
+            "Produtos": "\n".join(f"Linha {p['linha']}: {p['produto']}" for p in dados["produtos"]),
+        }
+        for ncm, dados in sorted(ncms.items())
+    ]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        pd.DataFrame(rows).to_excel(writer, index=False, sheet_name="NCM a cadastrar")
+        ws = writer.sheets["NCM a cadastrar"]
+        for col, width in zip("ABCDE", (12, 80, 40, 14, 60)):
+            ws.column_dimensions[col].width = width
+        ws.freeze_panes = "A2"
 
 
 def write_analise_report(analise: list[dict[str, Any]], output_path: Path) -> None:

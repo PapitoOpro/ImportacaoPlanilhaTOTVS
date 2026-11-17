@@ -161,6 +161,23 @@ class FiscalService:
         """CESTs oficialmente relacionados ao NCM que também estão cadastrados no TOTVS."""
         return [c.code for c in self.get_cests_by_ncm(ncm, reference_date) if self.in_totvs_catalog("CEST", c.code)]
 
+    def ncm_successors(self, ncm: str, reference_date: date | str | None = None) -> list[NcmInfo]:
+        """NCM que deixou de existir (desdobrado/extinto): NCMs vigentes do mesmo prefixo (7, senão 6 dígitos)
+        que o TOTVS aceita. Vazio se o NCM ainda é vigente: o NCM nunca é trocado só por faltar no TOTVS."""
+        code = normalize_ncm(ncm)
+        if not code or self.get_ncm(code, reference_date):
+            return []
+        for tamanho in (7, 6):
+            rows = self._conn.execute(
+                f"SELECT DISTINCT codigo FROM ncm WHERE codigo LIKE :p AND codigo <> :c AND {_VIGENTE} ORDER BY codigo",
+                {"p": code[:tamanho] + "%", "c": code, "d": _ref(reference_date)},
+            ).fetchall()
+            infos = [i for r in rows if (i := self.get_ncm(r["codigo"], reference_date))
+                     and self.in_totvs_catalog("NCM", i.code)]
+            if infos:
+                return infos
+        return []
+
     def has_data(self) -> bool:
         tipos = {r["tipo"] for r in self._conn.execute("SELECT DISTINCT tipo FROM importacao")}
         return {"NCM", "CEST"} <= tipos
