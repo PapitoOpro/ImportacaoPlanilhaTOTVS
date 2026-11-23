@@ -215,6 +215,55 @@ class FiscalService:
 
     # ------------------------------------------------------------------ validações
 
+    # Regra da calculadora oficial (NcmAplicavelService): classificação com anexo vigente só vale para NCM coberto
+    # por prefixo no anexo (A), exceto quando uma exceção vigente o cobre e nenhum vínculo sem exceção o cobre.
+    _IBS_CBS_APLICAVEL = """
+        SELECT DISTINCT c.cclasstrib, c.descricao FROM ibs_cbs_classificacao c
+        WHERE EXISTS (
+            SELECT 1 FROM ncm_ibs_cbs v
+            WHERE v.classificacao_id = c.id AND substr(:n, 1, length(v.ncm_prefixo)) = v.ncm_prefixo
+              AND :d BETWEEN v.inicio_vigencia AND COALESCE(v.fim_vigencia, :d))
+        AND NOT (
+            EXISTS (
+                SELECT 1 FROM ncm_ibs_cbs_excecao e JOIN ncm_ibs_cbs v ON v.id = e.vinculo_id
+                WHERE v.classificacao_id = c.id AND substr(:n, 1, length(v.ncm_prefixo)) = v.ncm_prefixo
+                  AND substr(:n, 1, length(e.ncm_prefixo)) = e.ncm_prefixo
+                  AND :d BETWEEN e.inicio_vigencia AND COALESCE(e.fim_vigencia, :d))
+            AND NOT EXISTS (
+                SELECT 1 FROM ncm_ibs_cbs v LEFT JOIN ncm_ibs_cbs_excecao e ON e.vinculo_id = v.id
+                WHERE v.classificacao_id = c.id AND substr(:n, 1, length(v.ncm_prefixo)) = v.ncm_prefixo
+                  AND :d BETWEEN v.inicio_vigencia AND COALESCE(v.fim_vigencia, :d)
+                  AND (e.id IS NULL OR :d NOT BETWEEN e.inicio_vigencia AND COALESCE(e.fim_vigencia, :d)))
+        )
+        ORDER BY c.cclasstrib
+    """
+    _IBS_CBS_PROXIMA_VIGENCIA = "2027-01-01"  # início da CBS plena; mostra o que passa a valer após a data de referência
+
+    def classificar_ibs_cbs(self, ncm: str, reference_date: date | str | None = None) -> dict[str, Any]:
+        """Conferência IBS/CBS por NCM (somente informativa; nunca escolhe entre candidatas).
+
+        PADRAO: nenhuma classificação com anexo cobre o NCM. REVISAR: há classificações candidatas a confirmar
+        com o cliente (vigentes na data ou a partir de 01/01/2027). SEM_BASE: base IBS/CBS não importada
+        (src/ibs_cbs_import.py)."""
+        code = normalize_ncm(ncm)
+        try:
+            versao = self._conn.execute("SELECT versao FROM ibs_cbs_versao WHERE id = 1").fetchone()
+        except sqlite3.OperationalError:  # base fiscal anterior às tabelas IBS/CBS
+            versao = None
+        if versao is None or not code:
+            return {"status": "SEM_BASE", "versao": None, "candidatas": []}
+        ref = _ref(reference_date)
+        datas = [(ref, "vigente")]
+        if ref < self._IBS_CBS_PROXIMA_VIGENCIA:
+            datas.append((self._IBS_CBS_PROXIMA_VIGENCIA, f"a partir de {self._IBS_CBS_PROXIMA_VIGENCIA}"))
+        candidatas: dict[str, dict[str, str]] = {}
+        for data, rotulo in datas:
+            for row in self._conn.execute(self._IBS_CBS_APLICAVEL, {"n": code, "d": data}):
+                candidatas.setdefault(row["cclasstrib"], {
+                    "cclasstrib": row["cclasstrib"], "descricao": row["descricao"], "vigencia": rotulo})
+        lista = sorted(candidatas.values(), key=lambda c: c["cclasstrib"])
+        return {"status": "REVISAR" if lista else "PADRAO", "versao": versao["versao"], "candidatas": lista}
+
     def validate_ncm(self, ncm: str, reference_date: date | str | None = None) -> dict[str, Any]:
         info = self.get_ncm(ncm, reference_date)
         cests = self.get_cests_by_ncm(ncm, reference_date) if info else []

@@ -435,7 +435,10 @@ def build_regras(
         if service is not None and not campos_com_erro & {"NCM", "CEST"}:
             validacao = service.validate_ncm_cest(_get(row, _COL_NCM), _get(row, _COL_CEST), reference_date)
             service.audit(validacao, usuario=usuario, arquivo=arquivo, produto=produto)
-            result.analise.append(_analise_item(linha, produto, validacao))
+            item = _analise_item(linha, produto, validacao)
+            if validacao.ncm_valid:
+                item["ibs_cbs"] = service.classificar_ibs_cbs(validacao.ncm, reference_date)
+            result.analise.append(item)
             campo = _STATUS_REJEITA.get(validacao.status)
             if campo:
                 errors.append(ValidationError(
@@ -612,6 +615,23 @@ def write_ncm_cadastrar_report(ncms: dict[str, dict[str, Any]], output_path: Pat
         ws.freeze_panes = "A2"
 
 
+_IBS_CBS_LABEL = {
+    "PADRAO": "Sem classificação específica por NCM (tratamento padrão)",
+    "REVISAR": "Revisar com o cliente: há classificações candidatas",
+    "SEM_BASE": "Base IBS/CBS não importada",
+}
+
+
+def _ibs_cbs_situacao(ibs: dict[str, Any] | None) -> str:
+    return _IBS_CBS_LABEL.get(ibs["status"], "") if ibs else ""
+
+
+def _ibs_cbs_candidatas(ibs: dict[str, Any] | None) -> str:
+    if not ibs:
+        return ""
+    return "\n".join(f"{c['cclasstrib']} - {c['descricao']} ({c['vigencia']})" for c in ibs["candidatas"])
+
+
 def write_analise_report(analise: list[dict[str, Any]], output_path: Path) -> None:
     """Relatório por produto da validação NCM/CEST contra a base oficial."""
     rows = [
@@ -627,6 +647,8 @@ def write_analise_report(analise: list[dict[str, Any]], output_path: Path) -> No
             "CESTs relacionados ao NCM": "\n".join(
                 f"{c['code_formatted']} - {c['description']}" for c in a["related_cests"]
             ),
+            "IBS/CBS (conferência)":  _ibs_cbs_situacao(a.get("ibs_cbs")),
+            "Classificações IBS/CBS candidatas": _ibs_cbs_candidatas(a.get("ibs_cbs")),
             "Observações":            " ".join(a["messages"]),
             "Base consultada":        " / ".join(a["versions"].values()),
         }
@@ -636,6 +658,6 @@ def write_analise_report(analise: list[dict[str, Any]], output_path: Path) -> No
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         pd.DataFrame(rows).to_excel(writer, index=False, sheet_name="Analise Fiscal")
         ws = writer.sheets["Analise Fiscal"]
-        for col, width in zip("ABCDEFGHIJK", (10, 35, 12, 50, 12, 40, 18, 30, 60, 60, 40)):
+        for col, width in zip("ABCDEFGHIJKLM", (10, 35, 12, 50, 12, 40, 18, 30, 60, 28, 60, 60, 40)):
             ws.column_dimensions[col].width = width
         ws.freeze_panes = "A2"

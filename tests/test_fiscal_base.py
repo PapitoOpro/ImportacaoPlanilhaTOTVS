@@ -361,6 +361,9 @@ class _FakeService:
     def get_ncm(self, ncm: str, ref: str | None = None) -> None:
         return None
 
+    def classificar_ibs_cbs(self, ncm: str, ref: str | None = None) -> dict:
+        return {"status": "SEM_BASE", "versao": None, "candidatas": []}
+
 
 def _regra(cest: str = "9900900", tributo: str = "T", cst: str = "102") -> "RegraFiscal":
     from fiscal import RegraFiscal
@@ -424,7 +427,7 @@ def test_sugestao_recusada_rejeita_linha_em_vez_de_aplicar() -> None:
     svc = _FakeService({"9900100": ("Cerveja", True)})
     svc.has_totvs_catalog = lambda: True  # type: ignore[attr-defined]
     svc.validate_ncm_cest = lambda *a, **k: type(  # type: ignore[attr-defined]
-        "V", (), {"status": StatusFiscal.VALID, "ncm": "", "cest": "", "messages": [],
+        "V", (), {"ncm_valid": True, "status": StatusFiscal.VALID, "ncm": "", "cest": "", "messages": [],
                   "to_dict": lambda self: {}})()
     svc.audit = lambda *a, **k: None  # type: ignore[attr-defined]
     df = pd.DataFrame([{"NOME PRODUTO": "CERVEJA", "NCM": "99011000", "CEST": "9900900", "TRIBUTO": "S",
@@ -470,7 +473,7 @@ def test_excluir_ncm_totvs_separa_produto_sem_derrubar_o_resto() -> None:
             return True
 
         def validate_ncm_cest(self, *a, **k):  # type: ignore[no-untyped-def]
-            return type("V", (), {"status": StatusFiscal.NO_CEST, "ncm": "", "cest": "", "messages": [],
+            return type("V", (), {"ncm_valid": True, "status": StatusFiscal.NO_CEST, "ncm": "", "cest": "", "messages": [],
                                   "to_dict": lambda self: {}})()
 
         def audit(self, *a, **k) -> None:  # type: ignore[no-untyped-def]

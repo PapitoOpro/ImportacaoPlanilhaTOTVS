@@ -94,6 +94,40 @@ CREATE TABLE IF NOT EXISTS regras_fiscais (
     created_at        TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- Classificação IBS/CBS (Reforma Tributária). Fonte: banco da calculadora oficial da Receita (MIT).
+-- Só consulta/conferência: o vínculo NCM × cClassTrib nunca é aplicado automaticamente.
+-- O mesmo cClassTrib tem uma linha por vigência (id = id da origem); o anexo vincula NCM por PREFIXO
+-- (capítulo/posição/subposição/NCM completo) e pode ter exceções.
+CREATE TABLE IF NOT EXISTS ibs_cbs_classificacao (
+    id              INTEGER PRIMARY KEY,
+    cclasstrib      TEXT NOT NULL CHECK (length(cclasstrib) = 6 AND cclasstrib NOT GLOB '*[^0-9]*'),
+    descricao       TEXT NOT NULL,
+    cst             TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ncm_ibs_cbs (
+    id               INTEGER PRIMARY KEY,
+    ncm_prefixo      TEXT NOT NULL CHECK (length(ncm_prefixo) BETWEEN 2 AND 8 AND ncm_prefixo NOT GLOB '*[^0-9]*'),
+    classificacao_id INTEGER NOT NULL REFERENCES ibs_cbs_classificacao (id),
+    inicio_vigencia  TEXT NOT NULL,
+    fim_vigencia     TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_ncm_ibs_cbs_class ON ncm_ibs_cbs (classificacao_id);
+
+CREATE TABLE IF NOT EXISTS ncm_ibs_cbs_excecao (
+    id              INTEGER PRIMARY KEY,
+    vinculo_id      INTEGER NOT NULL REFERENCES ncm_ibs_cbs (id),
+    ncm_prefixo     TEXT NOT NULL CHECK (length(ncm_prefixo) BETWEEN 2 AND 8 AND ncm_prefixo NOT GLOB '*[^0-9]*'),
+    inicio_vigencia TEXT NOT NULL,
+    fim_vigencia    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ibs_cbs_versao (
+    id              INTEGER PRIMARY KEY CHECK (id = 1),
+    versao          TEXT NOT NULL,
+    fonte           TEXT NOT NULL,
+    data_importacao TEXT NOT NULL
+);
 """
 
 
