@@ -272,6 +272,11 @@ def _escolher_cest(service: FiscalService, produto: str, candidatos: list[str]) 
     return None, ordenados
 
 
+def _cest_pai(cest: str) -> str:
+    """CEST do item pai (SS.III.00) de um CEST subdividido (SS.III.DD); o próprio código se já é pai."""
+    return cest[:5] + "00" if len(cest) == 7 else cest
+
+
 def _opcoes(service: FiscalService, codigos: list[str]) -> str:
     def rotulo(c: str) -> str:
         info = service.get_cest(c)
@@ -354,9 +359,14 @@ def _aplicar_catalogo_totvs(
     if not regra.cest or service.in_totvs_catalog("CEST", regra.cest):
         return regra, [], None
 
-    escolhido, ordenados = _escolher_cest(service, produto, service.totvs_cest_candidates(regra.ncm, reference_date))
-    if escolhido:
+    candidatos = service.totvs_cest_candidates(regra.ncm, reference_date)
+    pai = _cest_pai(regra.cest)
+    if pai in candidatos:  # item pai do Conv. 142/18 (SS.III.00): oficial p/ o NCM e aceito pelo TOTVS
+        escolhido, ordenados, criterio = pai, candidatos, "item pai do CEST informado, conforme Convênio 142/18"
+    else:
+        escolhido, ordenados = _escolher_cest(service, produto, candidatos)
         criterio = "único" if len(ordenados) == 1 else "mais aderente ao nome do produto"
+    if escolhido:
         correcao = {"linha": linha, "campo": "CEST", "de": regra.cest, "para": escolhido,
                     "motivo": f"CEST não cadastrado no TOTVS; trocado pelo CEST do NCM aceito pelo TOTVS ({criterio})"}
         return replace(regra, cest=escolhido), [], correcao
