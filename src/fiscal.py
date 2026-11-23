@@ -53,6 +53,7 @@ _COL_COFINS = ("CST COFINS", "COFINS CALCULO", "ALIQUOTA COFINS")
 _TIPO_ITEM_PADRAO = "00"  # Mercadoria para Revenda
 # Sugestão (só Simples) quando o cliente deixa o bloco fiscal em branco; espelha TEMPLATE_DEFAULTS de config.py
 _CFOP_PADRAO = "5102"
+_CFOP_ST = "5405"  # venda de mercadoria de terceiros sujeita a ICMS-ST (substituído tributário)
 _CSOSN_PADRAO = "102"
 _TRIBUTO_PADRAO = "I"
 _CEST_AGUA = "0300700"  # sugerido por padrão nos CESTs obrigatórios ambíguos que o produto não resolve
@@ -142,9 +143,11 @@ def _parse_contribuicao(
 def _parse_row(
     row: pd.Series, linha: int, regime: str, preencher: bool = False
 ) -> tuple[RegraFiscal | None, list[ValidationError], list[dict[str, Any]]]:
-    """Com `preencher` (só Simples), Tributo/CFOP/CSOSN em branco viram sugestão em vez de erro."""
+    """Com `preencher` (só Simples), Tributo/CFOP/CSOSN em branco viram sugestão em vez de erro.
+    No Regime Normal, só o CFOP em branco é sugerido, e apenas com o CST informado (é ele que diz se há ST)."""
     errors: list[ValidationError] = []
     sugestoes: list[dict[str, Any]] = []
+    sugerir_cfop_normal = preencher and regime not in _SIMPLES
     preencher = preencher and regime in _SIMPLES
 
     def err(campo: str, valor: str, motivo: str) -> None:
@@ -184,8 +187,6 @@ def _parse_row(
     if not cfop_raw and preencher:
         cfop = _CFOP_PADRAO
         sugerir("CFOP", cfop, "CFOP em branco; preenchido com o padrão de venda do Simples Nacional")
-    if len(cfop) != 4:
-        err("CFOP", cfop_raw, "CFOP deve ter 4 dígitos")
 
     cst_raw = _get(row, _COL_CST)
     cst_digits = _digits(cst_raw)
@@ -199,7 +200,17 @@ def _parse_row(
     else:
         cst_csosn = cst_digits.zfill(2) if cst_digits else ""
         if len(cst_csosn) not in (2, 3):
-            err("CST ou CSOSN", cst_raw, "CST deve ter 2 ou 3 dígitos no Regime Normal")
+            motivo = "CST deve ter 2 ou 3 dígitos no Regime Normal"
+            err("CST ou CSOSN", cst_raw, motivo if cst_raw else
+                motivo + ". Em branco: o CST depende do produto e da UF e não é sugerido; informe com o contador do cliente")
+
+    if not cfop_raw and sugerir_cfop_normal and cst_csosn and len(cst_csosn) in (2, 3):
+        com_st = tributo == "S" or cst_csosn[-2:] in _CST_ST
+        cfop = _CFOP_ST if com_st else _CFOP_PADRAO
+        sugerir("CFOP", cfop, "CFOP em branco; sugerido pelo CST informado: "
+                + ("venda com ICMS-ST (5405)" if com_st else "venda de mercadoria de terceiros sem ST (5102)"))
+    if len(cfop) != 4:
+        err("CFOP", cfop_raw, "CFOP deve ter 4 dígitos")
 
     reducao = _to_float(_get(row, _COL_REDUCAO))
     regime_normal = regime not in _SIMPLES
