@@ -394,6 +394,33 @@ def _aplicar_obrigatoriedade(
     )], None
 
 
+_PIS_COFINS_MOTIVO = {
+    "04": "revenda de produto sujeito à incidência monofásica",
+    "05": "produto sujeito à substituição tributária da contribuição",
+    "06": "produto sujeito à alíquota zero",
+}
+
+
+def _aplicar_pis_cofins(
+    service: FiscalService, linha: int, regra: RegraFiscal, reference_date: str | None,
+) -> tuple[RegraFiscal, dict[str, Any] | None]:
+    """Regime Normal com CST de PIS/COFINS em branco: sugere o CST das tabelas 4.3.10 a 4.3.13 da EFD-Contribuições
+    (Receita/SPED) quando a resposta pelo NCM é inequívoca. Nunca sobrescreve o que o cliente informou."""
+    if regra.pis is not None or regra.cofins is not None:
+        return regra, None
+    sugestao = service.sugerir_pis_cofins(regra.ncm, reference_date)
+    if sugestao["status"] != "SUGESTAO":
+        return regra, None
+    cst, fonte = sugestao["cst"], sugestao["fontes"][0]
+    versao = sugestao["versoes"].get(fonte["tabela"], "")
+    return replace(regra, pis=(cst, None, None), cofins=(cst, None, None)), {
+        "linha": linha, "campo": "CST PIS/COFINS", "de": "", "para": cst,
+        "motivo": f"CST de PIS/COFINS em branco; NCM consta na tabela {fonte['tabela']} da EFD-Contribuições "
+                  f"(Receita, versão {versao}): {_PIS_COFINS_MOTIVO.get(cst, 'conforme a tabela')}. "
+                  f"Confirme com o contador do cliente",
+    }
+
+
 def build_regras(
     df: pd.DataFrame,
     regime: str,
@@ -488,6 +515,11 @@ def build_regras(
                     result.correcoes.append(correcao)
                 if errors_etapa:
                     break
+
+            if not errors and aplicar_sugestoes and regime not in _SIMPLES:
+                regra, correcao_pis = _aplicar_pis_cofins(service, linha, regra, reference_date)
+                if correcao_pis:
+                    result.correcoes.append(correcao_pis)
 
         if errors:
             result.errors.extend(errors)

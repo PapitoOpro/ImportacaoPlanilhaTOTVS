@@ -264,6 +264,36 @@ class FiscalService:
         lista = sorted(candidatas.values(), key=lambda c: c["cclasstrib"])
         return {"status": "REVISAR" if lista else "PADRAO", "versao": versao["versao"], "candidatas": lista}
 
+    def sugerir_pis_cofins(self, ncm: str, reference_date: date | str | None = None) -> dict[str, Any]:
+        """CST de PIS/COFINS na REVENDA pelas tabelas 4.3.10 a 4.3.13 da EFD-Contribuições (somente sugestão).
+
+        SUGESTAO: uma única resposta inequívoca. REVISAR: CSTs conflitantes ou regra restrita a EX da TIPI.
+        SEM_REGRA: NCM fora das tabelas. SEM_BASE: tabelas não importadas (src/pis_cofins_import.py)."""
+        code = normalize_ncm(ncm)
+        try:
+            versoes = {r["tabela"]: r["versao"]
+                       for r in self._conn.execute("SELECT tabela, versao FROM pis_cofins_versao")}
+        except sqlite3.OperationalError:  # base fiscal anterior às tabelas de PIS/COFINS
+            versoes = {}
+        if not versoes or not code:
+            return {"status": "SEM_BASE", "cst": None, "fontes": [], "versoes": {}}
+        rows = self._conn.execute(
+            "SELECT tabela, codigo, descricao, cst, excecoes, restrito FROM pis_cofins_ncm "
+            "WHERE substr(:n, 1, length(ncm_prefixo)) = ncm_prefixo AND :d BETWEEN inicio AND COALESCE(fim, :d) "
+            "ORDER BY tabela, codigo",
+            {"n": code, "d": _ref(reference_date)},
+        ).fetchall()
+        validas = [r for r in rows if not any(code.startswith(e) for e in r["excecoes"].split(";") if e)]
+        fontes = [{"tabela": r["tabela"], "codigo": r["codigo"], "descricao": r["descricao"], "cst": r["cst"]}
+                  for r in validas]
+        if not validas:
+            return {"status": "SEM_REGRA", "cst": None, "fontes": [], "versoes": versoes}
+        csts = {r["cst"] for r in validas}
+        # Linha restrita a EX da TIPI não vale para o NCM inteiro: só confirma/contradiz o CST das linhas gerais.
+        if len(csts) == 1 and any(not r["restrito"] for r in validas):
+            return {"status": "SUGESTAO", "cst": csts.pop(), "fontes": fontes[:1], "versoes": versoes}
+        return {"status": "REVISAR", "cst": None, "fontes": fontes, "versoes": versoes}
+
     def validate_ncm(self, ncm: str, reference_date: date | str | None = None) -> dict[str, Any]:
         info = self.get_ncm(ncm, reference_date)
         cests = self.get_cests_by_ncm(ncm, reference_date) if info else []

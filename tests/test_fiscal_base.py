@@ -361,6 +361,9 @@ class _FakeService:
     def get_ncm(self, ncm: str, ref: str | None = None) -> None:
         return None
 
+    def sugerir_pis_cofins(self, ncm: str, ref: str | None = None) -> dict:
+        return {"status": "SEM_BASE", "cst": None, "fontes": [], "versoes": {}}
+
     def classificar_ibs_cbs(self, ncm: str, ref: str | None = None) -> dict:
         return {"status": "SEM_BASE", "versao": None, "candidatas": []}
 

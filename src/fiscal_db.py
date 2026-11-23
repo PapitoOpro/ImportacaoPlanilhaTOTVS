@@ -128,6 +128,31 @@ CREATE TABLE IF NOT EXISTS ibs_cbs_versao (
     fonte           TEXT NOT NULL,
     data_importacao TEXT NOT NULL
 );
+
+-- PIS/COFINS por NCM: tabelas 4.3.10 a 4.3.13 da EFD-Contribuições (Receita/SPED). Só sugestão (CST na revenda);
+-- o NCM é vinculado por PREFIXO. `excecoes` = NCMs excluídos da regra; `restrito` = a regra vale só para um EX da
+-- TIPI dentro do NCM, então não dá para decidir pelo NCM.
+CREATE TABLE IF NOT EXISTS pis_cofins_ncm (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    tabela      TEXT NOT NULL,
+    codigo      TEXT NOT NULL,
+    descricao   TEXT NOT NULL,
+    ncm_prefixo TEXT NOT NULL CHECK (length(ncm_prefixo) BETWEEN 2 AND 8 AND ncm_prefixo NOT GLOB '*[^0-9]*'),
+    excecoes    TEXT NOT NULL DEFAULT '',
+    restrito    INTEGER NOT NULL DEFAULT 0 CHECK (restrito IN (0, 1)),
+    inicio      TEXT NOT NULL,
+    fim         TEXT,
+    cst         TEXT NOT NULL CHECK (length(cst) = 2)
+);
+CREATE INDEX IF NOT EXISTS ix_pis_cofins_ncm_prefixo ON pis_cofins_ncm (ncm_prefixo);
+
+CREATE TABLE IF NOT EXISTS pis_cofins_versao (
+    tabela          TEXT PRIMARY KEY,
+    versao          TEXT NOT NULL,
+    fonte           TEXT NOT NULL,
+    conteudo_hash   TEXT NOT NULL,
+    data_importacao TEXT NOT NULL
+);
 """
 
 
