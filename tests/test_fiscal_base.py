@@ -373,34 +373,13 @@ def _regra(cest: str = "9900900", tributo: str = "T", cst: str = "102") -> "Regr
     return RegraFiscal("99011000", cest, tributo, 0.0, "5102", cst, "", None, None, None)
 
 
-def test_cest_ausente_no_totvs_corrige_so_com_escolha_inequivoca() -> None:
-    from fiscal import _aplicar_catalogo_totvs
+def test_ncm_fora_do_totvs_so_avisa() -> None:
+    from fiscal import _aviso_ncm_totvs
 
     unico = _FakeService({"9900100": ("Cerveja", True)})
-    nova, erros, corr = _aplicar_catalogo_totvs(unico, 3, "CERVEJA X", _regra(), None)
-    assert (nova.cest, erros, corr["para"]) == ("9900100", [], "9900100")
-
-    por_nome = _FakeService({"9900100": ("Cerveja de malte", True), "9900200": ("Refrigerante", True)})
-    nova, erros, corr = _aplicar_catalogo_totvs(por_nome, 3, "CERVEJA LATA 350ML", _regra(), None)
-    assert nova.cest == "9900100" and "aderente" in corr["motivo"]
-
-    empate = _FakeService({"9900100": ("Bebida alfa", True), "9900200": ("Bebida beta", True)})
-    nova, erros, corr = _aplicar_catalogo_totvs(empate, 3, "BEBIDA", _regra(), None)
-    assert corr is None and nova.cest == "9900900" and "9900100" in erros[0].reason
-
-    # NCM fora do TOTVS não bloqueia: só avisa
-    from fiscal import _aviso_ncm_totvs
     sem_ncm = _FakeService({"9900100": ("Cerveja", True)}, ncm_ok=False)
     assert _aviso_ncm_totvs(sem_ncm, 3, "CERVEJA", _regra())["valor"] == "99011000"
     assert _aviso_ncm_totvs(unico, 3, "CERVEJA", _regra()) is None
-
-
-def test_embalagem_nao_conta_na_escolha_por_descricao() -> None:
-    from fiscal import _aplicar_catalogo_totvs
-
-    svc = _FakeService({"9900100": ("Cerveja de malte", True), "9900200": ("Energetico em lata", True)})
-    nova, _, _ = _aplicar_catalogo_totvs(svc, 3, "CERVEJA LATA", _regra(), None)
-    assert nova.cest == "9900100"  # "lata" casaria com o energético se contasse
 
 
 def test_obrigatoriedade_cest_so_com_icms_st() -> None:
@@ -426,7 +405,8 @@ def test_obrigatoriedade_cest_so_com_icms_st() -> None:
     assert "806" in erros[0].reason and "9900200" in erros[0].reason
 
 
-def test_sugestao_recusada_rejeita_linha_em_vez_de_aplicar() -> None:
+def test_cest_informado_fora_do_catalogo_totvs_nao_e_alterado_nem_rejeitado() -> None:
+    # O catálogo do TOTVS usa a numeração antiga (Conv. 92/15); o CEST do cliente vale se for oficial
     svc = _FakeService({"9900100": ("Cerveja", True)})
     svc.has_totvs_catalog = lambda: True  # type: ignore[attr-defined]
     svc.validate_ncm_cest = lambda *a, **k: type(  # type: ignore[attr-defined]
@@ -435,13 +415,8 @@ def test_sugestao_recusada_rejeita_linha_em_vez_de_aplicar() -> None:
     svc.audit = lambda *a, **k: None  # type: ignore[attr-defined]
     df = pd.DataFrame([{"NOME PRODUTO": "CERVEJA", "NCM": "99011000", "CEST": "9900900", "TRIBUTO": "S",
                         "IMPOSTO (% ICMS)": "0", "CFOP": "5405", "CST OU CSOSN": "500"}])
-
-    aceita = build_regras(df, "1", service=svc, aplicar_sugestoes=True)
-    assert aceita.produtos_validos == 1 and aceita.regras[0].cest == "9900100" and len(aceita.correcoes) == 1
-
-    recusada = build_regras(df, "1", service=svc, aplicar_sugestoes=False)
-    assert recusada.produtos_validos == 0 and not recusada.correcoes
-    assert "Sugestão não aplicada: 9900100" in recusada.errors[0].reason
+    r = build_regras(df, "1", service=svc)
+    assert r.produtos_validos == 1 and r.regras[0].cest == "9900900" and not r.correcoes and not r.errors
 
 
 def test_aprende_ncm_recusado_pelo_totvs(tmp_path: Path) -> None:
