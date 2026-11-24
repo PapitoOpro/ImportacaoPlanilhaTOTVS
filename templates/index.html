@@ -193,9 +193,22 @@
             <p class="font-semibold text-white mb-4">Planilha do cliente</p>
             <div data-slot="dropzone"></div>
             <div data-slot="options" class="hidden mt-4 grid sm:grid-cols-2 gap-4">
+              <div class="sm:col-span-2">
+                <label class="field-label">Regime Tributário</label>
+                <select name="regime" class="field">
+                  <option value="1">1 - Simples Nacional</option>
+                  <option value="2">2 - Simples Nacional - Excesso</option>
+                  <option value="3">3 - Regime Normal</option>
+                </select>
+                <p class="text-xs text-muted mt-1">Os dados fiscais do produto (NCM, CEST, CFOP, CST/CSOSN, tributo, ICMS) seguem as mesmas regras da planilha de Regra NCM.</p>
+              </div>
               <div>
                 <label class="field-label">Número da Loja</label>
                 <input name="numero_loja" type="text" placeholder="Ex: 1" class="field" />
+              </div>
+              <div>
+                <label class="field-label">Seu nome <span class="text-muted font-normal">(auditoria)</span></label>
+                <input name="usuario" type="text" maxlength="100" placeholder="Ex: Rafael" class="field" />
               </div>
             </div>
             <div data-slot="actions"></div>
@@ -204,7 +217,7 @@
             <p class="font-semibold text-white">Como funciona</p>
             <ol class="mt-4 flex flex-col gap-3 text-muted">
               <li><span class="step">1</span> Envie a planilha de cadastro do cliente (.xls, .xlsx ou .csv).</li>
-              <li><span class="step">2</span> Informe o número da loja.</li>
+              <li><span class="step">2</span> Informe o regime tributário e o número da loja.</li>
               <li><span class="step">3</span> Baixe a PlanilhaImportaçãoLoja.xlsm e, se houver, o relatório de erros.</li>
             </ol>
           </div>
@@ -605,7 +618,8 @@
         ['exportados', 'Exportados', '✅', 'green'],
         ['rejeitados', 'Rejeitados', '⛔', 'rose'],
       ],
-      aviso: true,
+      aviso: false,
+      previa: true,
     },
     'regras-ncm': {
       endpoint: '/processar-regras-ncm',
@@ -950,7 +964,7 @@
 
       try {
         let extra = {};
-        if (cfg.fiscal) {
+        if (cfg.fiscal || cfg.previa) {
           const previa = await post({ previa: true });
           if (!previa.res.ok) {
             alert('Erro: ' + (previa.data.detail || 'Falha no processamento'));

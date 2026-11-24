@@ -25,6 +25,7 @@ from fiscal_service import FiscalService
 from kb_api import build_router as build_kb_router
 from kb_repository import KnowledgeBase, create_kb_engine
 from obrigatorios import garantir_obrigatorios, ocultar_do_cardapio
+from produto_fiscal import aplicar_fiscal_produtos
 from reader import read_client_file
 from totvs_catalog import registrar_recusados
 from transformer import transform
@@ -91,8 +92,22 @@ def _check_extensao(file: UploadFile) -> str:
 
 
 @app.post("/processar")
-async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
+async def processar(
+    file: UploadFile = File(...),
+    numero_loja: str = Form(""),
+    regime: str = Form(""),
+    usuario: str = Form(""),
+    previa: bool = Form(False),
+    aplicar_sugestoes: bool = Form(True),
+    excluir_ncm_totvs: bool = Form(False),
+    cest_escolhidos: str = Form(""),
+    ncm_escolhidos: str = Form(""),
+):
     suffix = _check_extensao(file)
+    escolhidos = _parse_escolhidos(cest_escolhidos, 7, "cest_escolhidos")
+    ncm_trocas = _parse_escolhidos(ncm_escolhidos, 8, "ncm_escolhidos")
+    if regime and regime not in REGIMES:
+        raise HTTPException(status_code=400, detail="Regime tributário inválido")
 
     content = await file.read()
     work_dir = Path(tempfile.mkdtemp())
@@ -102,10 +117,37 @@ async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
         input_path.write_bytes(content)
 
         df = read_client_file(input_path)
+
+        fiscal = None
+        if regime:  # o produto herda a mesma regra fiscal validada da planilha de Regra NCM
+            try:
+                fiscal = build_regras(
+                    df, regime, service=_FISCAL,
+                    usuario=usuario.strip()[:100] or "anonimo",
+                    arquivo=Path(file.filename or "").name[:200],
+                    aplicar_sugestoes=aplicar_sugestoes or previa,
+                    excluir_ncm_totvs=excluir_ncm_totvs and not previa,
+                    cest_escolhidos=escolhidos,
+                    ncm_escolhidos=ncm_trocas,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            if previa:
+                return JSONResponse({
+                    "previa": True, "correcoes": fiscal.correcoes, "avisos": fiscal.avisos,
+                    "grupos_cest": [{"ncm": ncm, **g} for ncm, g in fiscal.grupos_cest.items()],
+                    "grupos_ncm": [{"ncm": ncm, **g} for ncm, g in fiscal.grupos_ncm.items()],
+                })
+
         df, correcoes, erros_obrigatorios = garantir_obrigatorios(df)
         df = transform(df, COLUMN_MAP, TEMPLATE_DEFAULTS, TEMPLATE_COLUMNS, FIELD_FILL_DEFAULTS)
+        if fiscal:
+            df = aplicar_fiscal_produtos(df, fiscal.por_linha, regime)
+            correcoes = correcoes + fiscal.correcoes
         df = ocultar_do_cardapio(df)
         errors = validate(df, REQUIRED_FIELDS, FIELD_RULES) + erros_obrigatorios
+        if fiscal:  # linha sem regra válida não entra com fiscal genérico errado: vai para o relatório de erros
+            errors += fiscal.errors
 
         invalid_idx = {e.row - 3 for e in errors}
         valid_df = df[~df.index.isin(invalid_idx)].reset_index(drop=True)
@@ -131,6 +173,7 @@ async def processar(file: UploadFile = File(...), numero_loja: str = Form("")):
                 for e in errors
             ],
             "correcoes":      correcoes,
+            "avisos":         fiscal.avisos if fiscal else [],
             "arquivo":        arquivo_b64,
             "arquivo_erros":  arquivo_erros_b64,
         })

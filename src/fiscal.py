@@ -84,6 +84,7 @@ class ResultadoRegras:
     correcoes: list[dict[str, Any]] = field(default_factory=list)
     avisos: list[dict[str, Any]] = field(default_factory=list)
     grupos_cest: dict[str, dict[str, Any]] = field(default_factory=dict)  # NCM → {opcoes, produtos} sem CEST definido
+    por_linha: dict[int, RegraFiscal] = field(default_factory=dict)  # linha do cliente → regra final (só linhas válidas)
     grupos_ncm: dict[str, dict[str, Any]] = field(default_factory=dict)   # NCM extinto → {opcoes, produtos} a trocar
     ncms_totvs: dict[str, dict[str, Any]] = field(default_factory=dict)   # NCM fora do TOTVS → {descricao, produtos}
     base_fiscal_disponivel: bool = False
@@ -513,6 +514,7 @@ def build_regras(
         result.correcoes.extend(sugestoes)
         result.produtos_validos += 1
         vistos.setdefault(regra, None)
+        result.por_linha[linha] = regra
 
     result.regras = list(vistos)
     _log(logging.INFO, "regras_ncm_geradas", regime=regime, produtos=result.total_produtos,
