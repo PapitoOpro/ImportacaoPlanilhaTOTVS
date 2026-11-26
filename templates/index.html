@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,51 +11,67 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
   <script>
+    const token = nome => `rgb(var(--${nome}) / <alpha-value>)`;
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
           colors: {
-            // Paleta Telha: violeta para ação, ébano na base, neutros quentes nas superfícies
-            base:   '#1c1612',
-            panel:  '#171210',
-            card:   '#221c18',
-            raised: '#2b241f',
-            line:   '#352d27',
-            muted:  '#ac9f91',
-            accent: { DEFAULT: '#6f3cff', soft: '#b094ff', hover: '#5f2ee8' },
-            white:  '#f7f2ea',
-            slate:  { 200: '#ede5da', 300: '#d9cfc3', 400: '#c4b8a9', 500: '#8a7d70' },
+            base:    token('gelo'),
+            card:    token('branco'),
+            panel:   token('superficie'),
+            raised:  token('nevoa'),
+            line:    token('borda'),
+            ink:     token('grafite'),
+            muted:   token('texto-secundario'),
+            ardosia: token('ardosia'),
+            'sobre-ardosia': token('sobre-ardosia'),
+            accent:  { DEFAULT: token('cereja'), strong: token('cereja-acao'), hover: token('cereja-escuro') },
           },
         },
       },
     };
   </script>
   <style>
-    body { background: #1c1612; color-scheme: dark; }
-    .drop-active { border-color: #6f3cff !important; background: rgba(111,60,255,.08); }
+    /* ---- Tokens de design (canais RGB) ---- */
+    :root {
+      --gelo: 220 239 240;             /* #DCEFF0  60% base */
+      --ardosia: 82 107 122;           /* #526B7A  30% estrutura */
+      --cereja: 184 93 112;            /* #B85D70  10% destaque */
+      --cereja-acao: 175 84 104;       /* #AF5468  fundo com texto branco (AA) */
+      --cereja-escuro: 156 67 86;      /* #9C4356  hover e links */
+      --branco: 255 255 255;
+      --superficie: 244 248 249;       /* #F4F8F9  áreas internas */
+      --nevoa: 232 238 240;            /* #E8EEF0  hover e cabeçalho de tabela */
+      --borda: 203 217 220;            /* #CBD9DC */
+      --grafite: 41 57 67;             /* #293943 */
+      --texto-secundario: 90 106 115;  /* #5A6A73 */
+      --sobre-ardosia: 228 237 240;    /* texto discreto sobre ardósia */
+    }
+    body { background: rgb(var(--gelo)); color-scheme: light; }
+    .drop-active { border-color: rgb(var(--cereja-acao)) !important; background: rgba(184,93,112,.08); }
     .fade-in { animation: fadeIn .2s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-    :focus-visible { outline: 2px solid #b094ff; outline-offset: 2px; }
+    :focus-visible { outline: 2px solid rgb(var(--cereja-escuro)); outline-offset: 2px; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-thumb { background: #352d27; border-radius: 8px; }
-    input[type="date"] { color-scheme: dark; }
+    ::-webkit-scrollbar-thumb { background: rgb(var(--borda)); border-radius: 8px; }
+    #sidebar :focus-visible, header :focus-visible { outline-color: #fff; }
     @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } * { transition: none !important; } }
     /* ---- Base de Conhecimento ---- */
     .kb-item { border-left: 2px solid transparent; }
-    .kb-item.active { background: #2b241f; color: #f7f2ea; border-left-color: #6f3cff; }
+    .kb-item.active { background: rgb(var(--nevoa)); color: rgb(var(--grafite)); border-left-color: rgb(var(--cereja-acao)); }
     .kb-chevron { transition: transform .15s ease; }
     .kb-group[open] .kb-chevron { transform: rotate(90deg); }
-    .kb-article { font-size: 15px; line-height: 1.7; color: #d8cec1; max-width: 78ch; overflow-wrap: anywhere; }
+    .kb-article { font-size: 15px; line-height: 1.7; color: rgb(var(--grafite)); max-width: 78ch; overflow-wrap: anywhere; }
     /* mantém quebras de linha e recuos exatamente como digitados */
     .kb-article p, .kb-article li { white-space: pre-wrap; }
     .kb-article h1, .kb-article h2, .kb-article h3, .kb-article h4 {
-      color: #f7f2ea; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; scroll-margin-top: 5.5rem;
+      color: rgb(var(--grafite)); font-weight: 600; line-height: 1.35; letter-spacing: -.01em; scroll-margin-top: 5.5rem;
     }
     .kb-article h1 { font-size: 1.25rem; margin: 2rem 0 .75rem; }
-    .kb-article h2 { font-size: 1.125rem; margin: 2rem 0 .75rem; padding-top: 1.5rem; border-top: 1px solid #352d27; }
+    .kb-article h2 { font-size: 1.125rem; margin: 2rem 0 .75rem; padding-top: 1.5rem; border-top: 1px solid rgb(var(--borda)); }
     .kb-article h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
-    .kb-article h4 { font-size: .9rem; margin: 1.25rem 0 .5rem; color: #e3d9cc; }
+    .kb-article h4 { font-size: .9rem; margin: 1.25rem 0 .5rem; color: rgb(var(--grafite)); }
     .kb-article h1 + h2, .kb-article h2 + h2, .kb-article h2 + h3, .kb-article h3 + h3 {
       margin-top: .75rem; padding-top: 0; border-top: 0;
     }
@@ -66,28 +82,28 @@
     .kb-article ul { list-style: disc; }
     .kb-article ol { list-style: decimal; }
     .kb-article li { margin: .3rem 0; padding-left: .15rem; }
-    .kb-article li::marker { color: #ac9f91; }
-    .kb-article strong { color: #f7f2ea; font-weight: 600; }
-    .kb-article a { color: #b094ff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(176,148,255,.4); }
+    .kb-article li::marker { color: rgb(var(--texto-secundario)); }
+    .kb-article strong { color: rgb(var(--grafite)); font-weight: 600; }
+    .kb-article a { color: rgb(var(--cereja-escuro)); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(156,67,86,.4); }
     .kb-article a:hover { text-decoration-color: currentColor; }
-    .kb-article hr { border: 0; border-top: 1px solid #352d27; margin: 1.75rem 0; }
-    .kb-article blockquote { margin: 1rem 0; padding: .6rem 1rem; border-left: 3px solid #6f3cff; background: rgba(111,60,255,.07); border-radius: 0 8px 8px 0; }
+    .kb-article hr { border: 0; border-top: 1px solid rgb(var(--borda)); margin: 1.75rem 0; }
+    .kb-article blockquote { margin: 1rem 0; padding: .6rem 1rem; border-left: 3px solid rgb(var(--cereja-acao)); background: rgba(184,93,112,.07); border-radius: 0 8px 8px 0; }
     .kb-article blockquote p { margin: .25rem 0; }
-    .kb-article code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85em; background: #171210; border: 1px solid #352d27; border-radius: 6px; padding: .1em .4em; color: #ede5da; }
-    .kb-article pre { margin: 0; padding: .9rem 1rem; background: #171210; border: 1px solid #352d27; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+    .kb-article code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85em; background: rgb(var(--superficie)); border: 1px solid rgb(var(--borda)); border-radius: 6px; padding: .1em .4em; color: rgb(var(--grafite)); }
+    .kb-article pre { margin: 0; padding: .9rem 1rem; background: rgb(var(--superficie)); border: 1px solid rgb(var(--borda)); border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
     .kb-article pre code { background: none; border: 0; padding: 0; font-size: inherit; white-space: pre; }
     .kb-pre { position: relative; margin: 1rem 0; }
-    .kb-copy { position: absolute; top: .5rem; right: .5rem; display: inline-flex; align-items: center; gap: .35rem; font-size: 11px; color: #ac9f91; background: #221c18; border: 1px solid #352d27; border-radius: 6px; padding: .25rem .5rem; opacity: 0; transition: opacity .15s, color .15s; }
+    .kb-copy { position: absolute; top: .5rem; right: .5rem; display: inline-flex; align-items: center; gap: .35rem; font-size: 11px; color: rgb(var(--texto-secundario)); background: rgb(var(--branco)); border: 1px solid rgb(var(--borda)); border-radius: 6px; padding: .25rem .5rem; opacity: 0; transition: opacity .15s, color .15s; }
     .kb-pre:hover .kb-copy, .kb-copy:focus-visible { opacity: 1; }
-    .kb-copy:hover { color: #f7f2ea; }
-    .kb-table { margin: 1rem 0; overflow-x: auto; border: 1px solid #352d27; border-radius: 10px; }
+    .kb-copy:hover { color: rgb(var(--grafite)); }
+    .kb-table { margin: 1rem 0; overflow-x: auto; border: 1px solid rgb(var(--borda)); border-radius: 10px; }
     .kb-article table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    .kb-article th { text-align: left; font-weight: 600; color: #f7f2ea; background: #171210; }
-    .kb-article th, .kb-article td { padding: .55rem .8rem; border-bottom: 1px solid #352d27; vertical-align: top; }
+    .kb-article th { text-align: left; font-weight: 600; color: rgb(var(--grafite)); background: rgb(var(--superficie)); }
+    .kb-article th, .kb-article td { padding: .55rem .8rem; border-bottom: 1px solid rgb(var(--borda)); vertical-align: top; }
     .kb-article tr:last-child td { border-bottom: 0; }
     .kb-article img { max-width: 100%; border-radius: 8px; }
-    .kb-toc button { border-left: 1px solid #352d27; }
-    .kb-toc button:hover { color: #f7f2ea; border-left-color: #6f3cff; }
+    .kb-toc button { border-left: 1px solid rgb(var(--borda)); }
+    .kb-toc button:hover { color: rgb(var(--grafite)); border-left-color: rgb(var(--cereja-acao)); }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
     /* ---- Impressão / PDF da consulta CNPJ: só o resultado, em fundo claro ---- */
@@ -100,19 +116,19 @@
     }
   </style>
 </head>
-<body class="min-h-screen font-sans text-slate-300 antialiased">
+<body class="min-h-screen font-sans text-ink antialiased">
 
   <!-- Overlay mobile -->
-  <div id="overlay" class="hidden fixed inset-0 z-30 bg-black/60 md:hidden" onclick="toggleMenu(false)"></div>
+  <div id="overlay" class="hidden fixed inset-0 z-30 bg-ink/50 md:hidden" onclick="toggleMenu(false)"></div>
 
   <!-- ===================== MENU LATERAL ===================== -->
   <aside id="sidebar"
-         class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full md:translate-x-0 transition-transform bg-panel border-r border-line flex flex-col">
-    <div class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-line">
-      <span data-ico="sheet" class="w-8 h-8 shrink-0 rounded-lg bg-accent text-white flex items-center justify-center"></span>
+         class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full md:translate-x-0 transition-transform bg-ardosia flex flex-col">
+    <div class="h-14 shrink-0 flex items-center gap-3 px-5 border-b border-white/15">
+      <span data-ico="sheet" class="w-8 h-8 shrink-0 rounded-md bg-card text-accent-strong flex items-center justify-center"></span>
       <div class="leading-tight min-w-0">
         <p class="text-sm font-semibold text-white truncate">Tools For Totvs Food</p>
-        <p class="text-xs text-muted">Cadastros e dados fiscais</p>
+        <p class="text-xs text-sobre-ardosia">Cadastros e dados fiscais</p>
       </div>
     </div>
     <nav class="flex-1 overflow-y-auto p-3 flex flex-col gap-0.5 text-[13px]" aria-label="Principal">
@@ -139,15 +155,15 @@
         <span data-ico="book"></span> Base de Conhecimento
       </a>
     </nav>
-    <div class="px-5 py-3 border-t border-line text-xs text-muted tabular-nums" id="sidebarBase">Base fiscal: carregando…</div>
+    <div class="px-5 py-3 border-t border-white/15 text-xs text-sobre-ardosia tabular-nums" id="sidebarBase">Base fiscal: carregando…</div>
   </aside>
 
   <div class="md:ml-64 min-h-screen flex flex-col">
     <!-- ===================== TOPO ===================== -->
-    <header class="sticky top-0 z-20 h-14 bg-base border-b border-line flex items-center gap-3 px-4 md:px-8">
-      <button onclick="toggleMenu()" class="md:hidden btn btn-ghost btn-sm !px-2" aria-label="Menu"><span data-ico="menu" class="flex"></span></button>
-      <span id="basePill" class="hidden sm:inline-flex ml-auto items-center gap-2 text-xs text-muted">
-        <span class="dot bg-muted"></span> Base fiscal
+    <header class="sticky top-0 z-20 h-14 bg-ardosia border-b border-white/15 flex items-center gap-3 px-4 md:px-8">
+      <button onclick="toggleMenu()" class="md:hidden btn btn-sm !px-2 text-white hover:bg-white/10" aria-label="Menu"><span data-ico="menu" class="flex"></span></button>
+      <span id="basePill" class="inline-flex ml-auto items-center gap-2 text-xs text-white">
+        <span class="dot bg-sobre-ardosia"></span> Base fiscal
       </span>
     </header>
 
@@ -155,7 +171,7 @@
 
       <!-- ===================== DASHBOARD ===================== -->
       <section id="view-home" class="view">
-        <div class="page-head" data-title="Dashboard" data-crumb="Dashboard"></div>
+        <div class="page-head" data-desc="Base fiscal oficial e ferramentas de importação para o TOTVS Food" data-title="Dashboard" data-crumb="Dashboard"></div>
 
         <div id="homeKpis" class="metrics grid-cols-1 sm:grid-cols-2 xl:grid-cols-4"></div>
 
@@ -164,22 +180,22 @@
             <div class="panel overflow-hidden">
               <div class="panel-head"><p class="panel-title">Conversões</p></div>
               <a href="#produtos" class="tool-row group">
-                <span data-ico="box" class="flex text-muted"></span>
+                <span data-ico="box" class="icon-box"></span>
                 <span class="flex-1 min-w-0">
-                  <span class="block text-sm font-medium text-white">Cadastro de Produtos</span>
+                  <span class="block text-sm font-semibold text-ink">Cadastro de Produtos</span>
                   <span class="block panel-desc break-words">Gera a PlanilhaImportaçãoLoja.xlsm com produtos, grupos e unidades.</span>
                 </span>
-                <span class="hidden sm:inline text-[13px] text-accent-soft">Converter</span>
-                <span data-ico="chevron" class="flex text-muted group-hover:text-accent-soft"></span>
+                <span class="hidden sm:inline text-[13px] text-accent-hover">Converter</span>
+                <span data-ico="chevron" class="flex text-muted group-hover:text-accent-hover"></span>
               </a>
               <a href="#regras-ncm" class="tool-row group">
-                <span data-ico="receipt" class="flex text-muted"></span>
+                <span data-ico="receipt" class="icon-box"></span>
                 <span class="flex-1 min-w-0">
-                  <span class="block text-sm font-medium text-white">Regra NCM / Dados Fiscais</span>
+                  <span class="block text-sm font-semibold text-ink">Regra NCM / Dados Fiscais</span>
                   <span class="block panel-desc break-words">Gera a ImportacaoRegraNCMDadosFiscais.xlsx com validação oficial de NCM/CEST.</span>
                 </span>
-                <span class="hidden sm:inline text-[13px] text-accent-soft">Converter</span>
-                <span data-ico="chevron" class="flex text-muted group-hover:text-accent-soft"></span>
+                <span class="hidden sm:inline text-[13px] text-accent-hover">Converter</span>
+                <span data-ico="chevron" class="flex text-muted group-hover:text-accent-hover"></span>
               </a>
             </div>
             <form id="homeBusca" class="panel">
@@ -202,8 +218,8 @@
             <div class="panel overflow-hidden">
               <div class="panel-head"><p class="panel-title">Ferramentas externas</p><span class="text-xs text-muted">Abrem em nova aba</span></div>
               <ul>
-                <li><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer" class="tool-row !py-3 text-sm text-slate-200"><span class="flex-1">Cartão CNPJ (Receita Federal)</span><span data-ico="external" class="flex text-muted"></span></a></li>
-                <li><a href="https://www.confaz.fazenda.gov.br/" target="_blank" rel="noopener noreferrer" class="tool-row !py-3 text-sm text-slate-200"><span class="flex-1">CONFAZ</span><span data-ico="external" class="flex text-muted"></span></a></li>
+                <li><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer" class="tool-row !py-3 text-sm text-ink"><span class="flex-1">Cartão CNPJ (Receita Federal)</span><span data-ico="external" class="flex text-muted"></span></a></li>
+                <li><a href="https://www.confaz.fazenda.gov.br/" target="_blank" rel="noopener noreferrer" class="tool-row !py-3 text-sm text-ink"><span class="flex-1">CONFAZ</span><span data-ico="external" class="flex text-muted"></span></a></li>
               </ul>
             </div>
           </div>
@@ -212,7 +228,7 @@
 
       <!-- ===================== PRODUTOS ===================== -->
       <section id="view-produtos" class="view hidden" data-tool="produtos">
-        <div class="page-head" data-title="Cadastro de Produtos" data-crumb="Conversões / Cadastro de Produtos"></div>
+        <div class="page-head" data-desc="Converta a planilha do cliente no formato oficial de importação" data-title="Cadastro de Produtos" data-crumb="Conversões / Cadastro de Produtos"></div>
         <div class="grid lg:grid-cols-3 gap-6 items-start">
           <div class="lg:col-span-2 panel p-5">
             <p class="panel-title mb-4">Planilha do cliente</p>
@@ -256,7 +272,7 @@
 
       <!-- ===================== REGRAS NCM ===================== -->
       <section id="view-regras-ncm" class="view hidden" data-tool="regras-ncm">
-        <div class="page-head" data-title="Regra NCM / Dados Fiscais" data-crumb="Conversões / Regra NCM"></div>
+        <div class="page-head" data-desc="Gere as regras fiscais com validação oficial de NCM e CEST" data-title="Regra NCM / Dados Fiscais" data-crumb="Conversões / Regra NCM"></div>
         <div class="grid lg:grid-cols-3 gap-6 items-start">
           <div class="lg:col-span-2 panel p-5">
             <p class="panel-title mb-4">Planilha do cliente</p>
@@ -341,7 +357,7 @@
 
       <!-- ===================== CONSULTA ===================== -->
       <section id="view-consulta" class="view hidden">
-        <div class="page-head" data-title="Consulta NCM / CEST" data-crumb="Base Fiscal / Consulta"></div>
+        <div class="page-head" data-desc="Valide códigos nas tabelas oficiais" data-title="Consulta NCM / CEST" data-crumb="Base Fiscal / Consulta"></div>
         <form id="consultaForm" class="panel p-5 grid sm:grid-cols-4 gap-4 items-end">
           <div>
             <label class="field-label">NCM</label>
@@ -362,7 +378,7 @@
 
       <!-- ===================== CONSULTA CNPJ / IE ===================== -->
       <section id="view-cnpj" class="view hidden">
-        <div class="page-head" data-title="Consulta CNPJ / IE" data-crumb="Clientes / Consulta CNPJ"></div>
+        <div class="page-head" data-desc="Situação cadastral e Inscrição Estadual do cliente" data-title="Consulta CNPJ / IE" data-crumb="Clientes / Consulta CNPJ"></div>
         <form id="cnpjForm" class="panel p-5 grid sm:grid-cols-4 gap-4 items-end">
           <div class="sm:col-span-3">
             <label class="field-label" for="cnpjInput">CNPJ</label>
@@ -375,9 +391,9 @@
 
       <!-- ===================== BASE DE CONHECIMENTO ===================== -->
       <section id="view-kb" class="view hidden">
-        <div class="page-head" data-title="Base de Conhecimento" data-crumb="Ajuda / Base de Conhecimento"></div>
+        <div class="page-head" data-desc="Artigos e procedimentos de apoio" data-title="Base de Conhecimento" data-crumb="Ajuda / Base de Conhecimento"></div>
 
-        <div id="kbAviso" class="hidden mb-4 rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-amber-200 text-sm"></div>
+        <div id="kbAviso" class="hidden mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 text-sm"></div>
 
         <div class="grid lg:grid-cols-[288px_minmax(0,1fr)] gap-6 items-start">
           <aside class="panel flex flex-col max-h-[45vh] lg:max-h-[calc(100vh-6.5rem)] lg:sticky lg:top-[72px]">
@@ -390,13 +406,13 @@
             <nav id="kbLista" class="flex-1 overflow-y-auto p-2 text-sm" aria-label="Artigos"></nav>
             <div class="px-4 py-2.5 border-t border-line flex items-center justify-between gap-2 text-xs text-muted">
               <span id="kbTotal"></span>
-              <button type="button" id="kbEntrar" class="inline-flex items-center gap-1.5 hover:text-white"><span data-ico="lock"></span> Entrar como admin</button>
+              <button type="button" id="kbEntrar" class="inline-flex items-center gap-1.5 hover:text-ink"><span data-ico="lock"></span> Entrar como admin</button>
             </div>
           </aside>
 
           <div class="min-w-0">
             <div id="kbAdminBar" class="hidden flex flex-wrap items-center gap-2 mb-4 panel px-4 py-2.5">
-              <span class="inline-flex items-center gap-2 text-xs text-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Modo administrador</span>
+              <span class="inline-flex items-center gap-2 text-xs text-emerald-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Modo administrador</span>
               <div class="flex-1"></div>
               <button type="button" id="kbCatBtn" class="btn btn-secondary btn-sm"><span data-ico="folder"></span> Categorias</button>
               <button type="button" id="kbNovo" class="btn btn-primary btn-sm"><span data-ico="plus"></span> Novo artigo</button>
@@ -408,7 +424,7 @@
             <div id="kbLeitor" class="panel p-5 md:p-8 min-h-[300px]"></div>
 
             <form id="kbEditor" class="hidden panel p-5 flex flex-col gap-4">
-              <div id="kbEditorInfo" class="hidden bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-accent-soft"></div>
+              <div id="kbEditorInfo" class="hidden bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-accent-hover"></div>
               <div class="grid sm:grid-cols-3 gap-4">
                 <div class="sm:col-span-2">
                   <label class="field-label">Título</label>
@@ -423,7 +439,7 @@
                 <div class="flex items-center justify-between mb-1.5">
                   <label class="field-label !mb-0">Conteúdo <span class="text-muted font-normal">(Markdown: ## título, - lista, **negrito**)</span></label>
                   <div class="flex text-xs border border-line rounded-lg overflow-hidden">
-                    <button type="button" data-tab="escrever" class="kb-tab px-3 py-1.5 bg-accent text-white">Escrever</button>
+                    <button type="button" data-tab="escrever" class="kb-tab px-3 py-1.5 bg-accent-strong text-white">Escrever</button>
                     <button type="button" data-tab="visualizar" class="kb-tab px-3 py-1.5 text-muted">Visualizar</button>
                   </div>
                 </div>
@@ -453,16 +469,16 @@
   <div class="modal max-w-lg flex flex-col max-h-[85vh]">
     <div class="flex items-start justify-between gap-3 px-6 py-4 border-b border-line">
       <div>
-        <h2 id="kbCatTitulo" class="text-base font-semibold text-white leading-tight">Categorias</h2>
+        <h2 id="kbCatTitulo" class="text-base font-semibold text-ink leading-tight">Categorias</h2>
         <p class="text-xs text-muted mt-1">Ao renomear, os artigos acompanham a categoria.</p>
       </div>
-      <button type="button" id="kbCatFechar" aria-label="Fechar" class="text-muted hover:text-white p-1 -mr-1"><span data-ico="x"></span></button>
+      <button type="button" id="kbCatFechar" aria-label="Fechar" class="text-muted hover:text-ink p-1 -mr-1"><span data-ico="x"></span></button>
     </div>
     <form id="kbCatNova" class="flex gap-2 px-6 py-4 border-b border-line">
       <input name="nome" required maxlength="60" placeholder="Nome da nova categoria" aria-label="Nome da nova categoria" class="field" />
       <button type="submit" class="btn btn-primary shrink-0"><span data-ico="plus"></span> Adicionar</button>
     </form>
-    <div id="kbCatErro" class="hidden mx-6 mt-4 rounded-lg border border-rose-500/25 bg-rose-500/5 px-3 py-2 text-rose-300 text-sm"></div>
+    <div id="kbCatErro" class="hidden mx-6 mt-4 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-rose-800 text-sm"></div>
     <div id="kbCatLista" class="flex-1 overflow-y-auto px-6 py-2"></div>
   </div>
 </div>
@@ -473,36 +489,36 @@
     <!-- Cabeçalho -->
     <div class="px-6 pt-5 pb-4 border-b border-line">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="flex items-center gap-2 text-xs font-medium text-amber-300"><span data-ico="alert" class="flex"></span> Aviso importante</p>
+        <p class="flex items-center gap-2 text-xs font-medium text-amber-800"><span data-ico="alert" class="flex"></span> Aviso importante</p>
         <span class="text-xs text-muted tabular-nums">A partir de 01/01/2027</span>
       </div>
-      <h2 id="avisoTitulo" class="mt-2 text-lg font-semibold text-white leading-tight">Reforma Tributária — PIS/COFINS</h2>
+      <h2 id="avisoTitulo" class="mt-2 text-lg font-semibold text-ink leading-tight">Reforma Tributária — PIS/COFINS</h2>
       <p class="text-xs text-muted mt-1">Emenda Constitucional nº 132/2023</p>
     </div>
 
     <!-- Conteúdo -->
-    <div class="px-6 py-5 flex flex-col gap-4 text-sm text-slate-300 leading-relaxed">
+    <div class="px-6 py-5 flex flex-col gap-4 text-sm text-ink leading-relaxed">
       <div class="flex gap-3">
         <span data-ico="calendar" class="flex mt-0.5 text-muted"></span>
         <div>
-          <p class="font-semibold text-white">O que muda</p>
-          <p class="mt-1">As contribuições <b class="text-white">PIS/COFINS serão extintas a partir de 1º de janeiro de 2027</b>, dando início ao período de transição para os novos tributos.</p>
+          <p class="font-semibold text-ink">O que muda</p>
+          <p class="mt-1">As contribuições <b class="text-ink">PIS/COFINS serão extintas a partir de 1º de janeiro de 2027</b>, dando início ao período de transição para os novos tributos.</p>
         </div>
       </div>
 
       <div class="flex gap-3">
         <span data-ico="receipt" class="flex mt-0.5 text-muted"></span>
         <div>
-          <p class="font-semibold text-white">Boletos e faturas emitidos em 2026</p>
-          <p class="mt-1">Com <b class="text-white">vencimento a partir de 2027</b> e previsão de retenção na fonte desses tributos, o tratamento fiscal e o valor líquido do título poderão sofrer adequações.</p>
+          <p class="font-semibold text-ink">Boletos e faturas emitidos em 2026</p>
+          <p class="mt-1">Com <b class="text-ink">vencimento a partir de 2027</b> e previsão de retenção na fonte desses tributos, o tratamento fiscal e o valor líquido do título poderão sofrer adequações.</p>
           <p class="mt-2 text-xs text-muted">Isso ocorre porque o fato gerador e as regras de retenção consideram a data do efetivo pagamento (liquidação).</p>
         </div>
       </div>
 
       <div class="flex gap-3 rounded-lg border border-line bg-panel p-4">
-        <span data-ico="check" class="flex mt-0.5 text-emerald-400"></span>
+        <span data-ico="check" class="flex mt-0.5 text-emerald-700"></span>
         <div>
-          <p class="font-semibold text-white">Nenhuma ação é necessária no momento</p>
+          <p class="font-semibold text-ink">Nenhuma ação é necessária no momento</p>
           <p class="mt-1">Recomendamos apenas atenção da equipe financeira aos valores de liquidação dos títulos a partir de janeiro de 2027.</p>
         </div>
       </div>
@@ -521,21 +537,21 @@
 
 <!-- ===================== COMPONENTES ===================== -->
 <template id="tpl-dropzone">
-  <div class="dropzone border border-dashed border-slate-500/50 bg-panel rounded-lg px-4 py-8 text-center cursor-pointer transition-colors hover:border-accent-soft">
-    <div class="flex justify-center text-accent-soft">
+  <div class="dropzone border border-dashed border-ardosia/50 bg-panel rounded-md px-4 py-8 text-center cursor-pointer transition-colors hover:border-accent-soft">
+    <div class="flex justify-center text-ardosia">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
               d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
       </svg>
     </div>
-    <p class="text-slate-200 font-medium mt-3">Arraste a planilha do cliente aqui</p>
+    <p class="text-ink font-medium mt-3">Arraste a planilha do cliente aqui</p>
     <p class="text-muted text-sm mt-1">ou clique para selecionar</p>
     <p class="text-muted text-xs mt-3 font-mono">.xls · .xlsx · .csv</p>
   </div>
   <input type="file" accept=".xls,.xlsx,.xlsm,.csv" class="file-input hidden" />
   <div class="file-info hidden mt-4 flex items-center gap-3 px-3 py-2 bg-panel border border-line rounded-lg">
     <span data-ico="file" class="flex text-muted"></span>
-    <span class="file-name text-sm text-slate-200 font-medium truncate flex-1"></span>
+    <span class="file-name text-sm text-ink font-medium truncate flex-1"></span>
     <button type="button" class="btn-reset btn btn-ghost btn-sm !px-2 shrink-0" aria-label="Remover arquivo"><span data-ico="x" class="flex"></span></button>
   </div>
 </template>
@@ -545,7 +561,7 @@
     Processar planilha
   </button>
   <div class="loading hidden mt-5 flex items-center justify-center gap-3 text-muted">
-    <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+    <svg class="animate-spin w-5 h-5 text-accent-strong" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
     </svg>
@@ -576,8 +592,8 @@
           </table>
         </div>
       </div>
-      <div class="avisos-container hidden lg:col-start-2 lg:col-span-2 panel !border-amber-500/30 p-5">
-        <p class="flex items-center gap-2 text-sm font-semibold text-amber-300 mb-1"><span data-ico="alert" class="flex"></span> NCM que vai dar erro na importação</p>
+      <div class="avisos-container hidden lg:col-start-2 lg:col-span-2 panel !border-amber-300 p-5">
+        <p class="flex items-center gap-2 text-sm font-semibold text-amber-800 mb-1"><span data-ico="alert" class="flex"></span> NCM que vai dar erro na importação</p>
         <p class="panel-desc mb-4">Estes NCMs não são aceitos pelo TOTVS (fora da tabela MDIC do sistema ou recusados antes). As linhas continuam na planilha, mas a importação vai acusar erro até o NCM ser cadastrado no TOTVS.</p>
         <div class="overflow-x-auto max-h-[300px] overflow-y-auto">
           <table class="data-table">
@@ -596,7 +612,7 @@
         </div>
       </div>
       <div class="sem-erros hidden lg:col-start-2 lg:col-span-2 panel empty">
-        <span data-ico="check" class="flex text-emerald-400"></span> Nenhuma linha rejeitada.
+        <span data-ico="check" class="flex text-emerald-700"></span> Nenhuma linha rejeitada.
       </div>
     </div>
   </div>
@@ -605,63 +621,62 @@
 <style type="text/tailwindcss">
   @layer components {
     /* superfícies */
-    .panel { @apply min-w-0 bg-card border border-line rounded-xl; }
+    .panel { @apply min-w-0 bg-card border border-line rounded-lg; }
     .grid > * { min-width: 0; }
     .panel-head { @apply flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 border-b border-line; }
-    .panel-title { @apply text-sm font-semibold text-white; }
+    .panel-title { @apply text-sm font-semibold text-ink; }
     .panel-desc { @apply text-[13px] text-muted; }
+    .icon-box { @apply flex w-9 h-9 shrink-0 items-center justify-center rounded-md bg-base text-ardosia; }
 
     /* indicadores: uma faixa única dividida por fios */
-    .metrics { @apply grid bg-card border border-line rounded-xl overflow-hidden; }
-    .metric { @apply min-w-0 px-5 py-4; box-shadow: 1px 0 0 #352d27, 0 1px 0 #352d27; }
-    .metric-label { @apply flex items-center gap-2 text-[13px] text-muted; }
-    .metric-value { @apply mt-1 text-2xl font-semibold text-white tabular-nums truncate; }
+    .metrics { @apply grid bg-card border border-line rounded-lg overflow-hidden; }
+    .metric { @apply min-w-0 px-5 py-4; box-shadow: 1px 0 0 rgb(var(--borda)), 0 1px 0 rgb(var(--borda)); }
+    .metric-label { @apply flex items-center gap-2 text-[13px] font-medium text-ardosia; }
+    .metric-value { @apply mt-1.5 text-[28px] leading-9 font-semibold text-ink tabular-nums truncate; }
     .metric-sub { @apply mt-1 text-xs text-muted truncate; }
     .dot { @apply inline-block w-1.5 h-1.5 shrink-0 rounded-full; }
 
     /* ações */
-    .btn { @apply inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
+    .btn { @apply inline-flex items-center justify-center gap-2 h-10 px-4 rounded-md text-sm font-medium whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
     .btn-sm { @apply h-8 px-3 text-[13px]; }
-    .btn-primary { @apply bg-accent text-white hover:bg-accent-hover; }
-    .btn-secondary { @apply border border-line text-slate-200 hover:bg-raised; }
-    .btn-ghost { @apply text-muted hover:text-white hover:bg-raised; }
-    .btn-danger { @apply border border-rose-500/30 text-rose-300 hover:bg-rose-500/10; }
-    .link { @apply text-accent-soft hover:underline underline-offset-4; }
+    .btn-primary { @apply bg-accent-strong text-white hover:bg-accent-hover; }
+    .btn-secondary { @apply bg-card border border-line text-ardosia hover:bg-raised; }
+    .btn-ghost { @apply text-ardosia hover:bg-raised hover:text-ink; }
+    .btn-danger { @apply bg-card border border-rose-300 text-rose-800 hover:bg-rose-50; }
+    .link { @apply text-accent-hover hover:underline underline-offset-4; }
 
     /* formulários */
-    .field-label { @apply block text-[13px] font-medium text-slate-300 mb-1.5; }
-    .field { @apply w-full min-h-[40px] bg-panel border border-line rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-muted transition-colors hover:border-slate-500/60 focus:outline-none focus:border-accent-soft focus:ring-1 focus:ring-accent-soft; }
+    .field-label { @apply block text-[13px] font-medium text-ink mb-1.5; }
+    .field { @apply w-full min-h-[40px] bg-card border border-line rounded-md px-3 py-2 text-sm text-ink placeholder-muted transition-colors hover:border-ardosia/60 focus:outline-none focus:border-accent-strong focus:ring-1 focus:ring-accent-strong disabled:bg-raised disabled:cursor-not-allowed; }
     .field-hint { @apply text-xs text-muted mt-1.5 leading-relaxed; }
-    .file-native { @apply w-full text-xs text-muted file:mr-3 file:h-8 file:px-3 file:rounded-lg file:border file:border-solid file:border-line file:bg-raised file:text-slate-200 file:text-xs file:cursor-pointer; }
-    .check { accent-color: #6f3cff; }
+    .file-native { @apply w-full text-xs text-muted file:mr-3 file:h-8 file:px-3 file:rounded-md file:border file:border-solid file:border-line file:bg-card file:text-ardosia file:text-xs file:font-medium file:cursor-pointer; }
+    .check { accent-color: rgb(var(--cereja-acao)); }
 
     /* tabelas */
-    .data-table { @apply w-full min-w-[480px] text-sm tabular-nums; }
-    .data-table thead { @apply sticky top-0 bg-card text-xs text-muted; }
-    .data-table th { @apply py-2.5 px-3 text-left font-medium border-b border-line whitespace-nowrap; }
+    .data-table { @apply w-full min-w-[480px] text-sm text-ink tabular-nums; }
+    .data-table thead { @apply sticky top-0 bg-raised text-xs text-ardosia; }
+    .data-table th { @apply py-2.5 px-3 text-left font-semibold border-b border-line whitespace-nowrap; }
     .data-table td { @apply py-2.5 px-3 border-b border-line align-top; }
     .data-table tbody tr:last-child td { @apply border-b-0; }
-    .data-table tbody tr:hover { @apply bg-raised/50; }
+    .data-table tbody tr:hover { @apply bg-panel; }
     .code { @apply font-mono text-[13px] whitespace-nowrap; }
 
     /* mensagens */
-    .alert { @apply flex items-start gap-3 rounded-lg border px-4 py-3 text-sm; }
-    .alert-warn { @apply border-amber-500/25 bg-amber-500/5 text-amber-200; }
-    .alert-error { @apply border-rose-500/25 bg-rose-500/5 text-rose-300; }
+    .alert { @apply flex items-start gap-3 rounded-md border px-4 py-3 text-sm; }
+    .alert-warn { @apply border-amber-300 bg-amber-50 text-amber-800; }
+    .alert-error { @apply border-rose-300 bg-rose-50 text-rose-800; }
     .empty { @apply flex flex-col items-center justify-center gap-2 text-center text-sm text-muted py-10 px-4; }
-    .backdrop { @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70; }
-    .modal { @apply w-full bg-card border border-line rounded-xl shadow-2xl; }
+    .backdrop { @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50; }
+    .modal { @apply w-full bg-card border border-line rounded-lg shadow-xl; }
 
-    /* navegação */
-    .nav-label { @apply px-3 pt-5 pb-1.5 text-xs font-medium text-muted; }
-    .nav-link { @apply relative flex items-center gap-2.5 min-h-[36px] px-3 py-1.5 rounded-lg text-slate-300 transition-colors hover:bg-raised/60 hover:text-white; }
-    .nav-link [data-ico] { @apply flex text-muted; }
-    .nav-link.active { @apply bg-raised text-white font-medium; }
-    .nav-link.active [data-ico] { @apply text-accent-soft; }
-    .nav-link.active::before { content: ''; @apply absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-accent; }
+    /* navegação (sobre ardósia) */
+    .nav-label { @apply px-3 pt-5 pb-1.5 text-xs font-medium text-sobre-ardosia; }
+    .nav-link { @apply flex items-center gap-2.5 min-h-[36px] px-3 py-1.5 rounded-md text-white transition-colors hover:bg-white/10; }
+    .nav-link [data-ico] { @apply flex; }
+    .nav-link.active { @apply bg-accent-strong font-medium; }
 
-    .tool-row { @apply flex items-center gap-4 px-5 py-4 border-b border-line last:border-b-0 transition-colors hover:bg-raised/60; }
-    .step { @apply inline-flex w-5 h-5 shrink-0 items-center justify-center rounded-md border border-line text-xs text-slate-300 tabular-nums; }
+    .tool-row { @apply flex items-center gap-4 px-5 py-4 border-b border-line last:border-b-0 transition-colors hover:bg-panel; }
+    .step { @apply inline-flex w-6 h-6 shrink-0 items-center justify-center rounded-md bg-base text-xs font-semibold text-ardosia tabular-nums; }
     .how { @apply flex gap-3; }
   }
 </style>
@@ -699,13 +714,13 @@
   };
 
   const STATUS_FISCAL = {
-    VALID:             { label: 'NCM e CEST relacionados',   badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', color: '#10b981', ok: true },
-    NO_CEST:           { label: 'Sem CEST relacionado',      badge: 'bg-slate-500/15 text-slate-300 border-slate-500/30',       color: '#8a7d70', ok: true },
-    MULTIPLE_CEST:     { label: 'Múltiplos CESTs possíveis', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',       color: '#f59e0b' },
-    NEEDS_REVIEW:      { label: 'Necessita revisão',         badge: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',    color: '#eab308' },
-    NCM_CEST_MISMATCH: { label: 'CEST sem relação com NCM',  badge: 'bg-orange-500/15 text-orange-300 border-orange-500/30',    color: '#f97316' },
-    INVALID_CEST:      { label: 'CEST inválido',             badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30',          color: '#f43f5e' },
-    INVALID_NCM:       { label: 'NCM inválido',              badge: 'bg-red-500/15 text-red-300 border-red-500/30',             color: '#dc2626' },
+    VALID:             { label: 'NCM e CEST relacionados',   badge: 'bg-emerald-100 text-emerald-800 border-emerald-300', color: '#10b981', ok: true },
+    NO_CEST:           { label: 'Sem CEST relacionado',      badge: 'bg-slate-100 text-slate-700 border-slate-300',       color: '#71818a', ok: true },
+    MULTIPLE_CEST:     { label: 'Múltiplos CESTs possíveis', badge: 'bg-amber-100 text-amber-800 border-amber-300',       color: '#f59e0b' },
+    NEEDS_REVIEW:      { label: 'Necessita revisão',         badge: 'bg-yellow-100 text-yellow-800 border-yellow-300',    color: '#eab308' },
+    NCM_CEST_MISMATCH: { label: 'CEST sem relação com NCM',  badge: 'bg-orange-100 text-orange-800 border-orange-300',    color: '#f97316' },
+    INVALID_CEST:      { label: 'CEST inválido',             badge: 'bg-rose-100 text-rose-800 border-rose-300',          color: '#f43f5e' },
+    INVALID_NCM:       { label: 'NCM inválido',              badge: 'bg-red-100 text-red-800 border-red-300',             color: '#dc2626' },
   };
 
   const KB_ICO = {
@@ -776,7 +791,8 @@
     el.className = 'mb-6';
     const trilha = el.dataset.crumb === el.dataset.title ? '' : el.dataset.crumb.split(' / ')[0];
     el.innerHTML = `${trilha ? `<p class="text-xs text-muted mb-1">${esc(trilha)}</p>` : ''}
-      <h1 class="text-xl font-semibold text-white">${esc(el.dataset.title)}</h1>`;
+      <h1 class="text-[22px] leading-8 font-semibold text-ink">${esc(el.dataset.title)}</h1>
+      <p class="text-sm text-muted mt-0.5">${esc(el.dataset.desc)}</p>`;
   });
 
   // ------------------------------------------------------------- análise fiscal (regras NCM)
@@ -789,18 +805,18 @@
       <div class="grid sm:grid-cols-2 gap-4 text-xs">
         <div>
           <p class="text-muted">Descrição NCM (oficial)</p>
-          <p class="text-slate-200 mt-1">${esc(a.ncm_description) || '—'}</p>
+          <p class="text-ink mt-1">${esc(a.ncm_description) || '—'}</p>
         </div>
         <div>
           <p class="text-muted">Descrição CEST (oficial)</p>
-          <p class="text-slate-200 mt-1">${esc(a.cest_description) || '—'}</p>
+          <p class="text-ink mt-1">${esc(a.cest_description) || '—'}</p>
         </div>
       </div>
       ${rel.length ? `
         <p class="text-muted text-xs mt-4">CESTs relacionados ao NCM (${rel.length})</p>
         <ul class="mt-2 grid gap-1 text-xs">${rel.map(c =>
-          `<li class="flex gap-2"><b class="text-slate-200 whitespace-nowrap">${esc(c.code_formatted)}</b><span class="text-muted">${esc(c.description)}</span></li>`).join('')}</ul>` : ''}
-      ${msgs ? `<p class="flex items-start gap-2 mt-4 text-xs text-amber-300">${ico('alert', 'w-3.5 h-3.5')}<span>${esc(msgs)}</span></p>` : ''}`;
+          `<li class="flex gap-2"><b class="text-ink whitespace-nowrap">${esc(c.code_formatted)}</b><span class="text-muted">${esc(c.description)}</span></li>`).join('')}</ul>` : ''}
+      ${msgs ? `<p class="flex items-start gap-2 mt-4 text-xs text-amber-800">${ico('alert', 'w-3.5 h-3.5')}<span>${esc(msgs)}</span></p>` : ''}`;
   }
 
   function renderFiscal(container, data) {
@@ -814,11 +830,11 @@
     const atencao = (data.analise || []).filter(a => !STATUS_FISCAL[a.status]?.ok);
 
     const legenda = resumo.map(([k, n]) => {
-      const st = STATUS_FISCAL[k] || { label: k, color: '#8a7d70' };
+      const st = STATUS_FISCAL[k] || { label: k, color: '#71818a' };
       const pct = Math.round((n / total) * 100);
       return `
         <div>
-          <div class="flex justify-between text-xs"><span class="flex items-center gap-2 text-slate-300">
+          <div class="flex justify-between text-xs"><span class="flex items-center gap-2 text-ink">
             <span class="w-2.5 h-2.5 rounded-full" style="background:${st.color}"></span>${esc(st.label)}</span>
             <span class="text-muted">${n} · ${pct}%</span></div>
           <div class="h-1.5 bg-panel rounded-full mt-1.5"><div class="h-1.5 rounded-full" style="width:${pct}%;background:${st.color}"></div></div>
@@ -828,9 +844,9 @@
     const linhas = atencao.map((a, i) => `
       <tr class="cursor-pointer" data-row="${i}">
         <td class="text-muted">${esc(a.linha)}</td>
-        <td class="text-slate-200">${esc(a.produto) || '(sem nome)'}</td>
-        <td class="code">${esc(a.ncm_formatted)} ${a.ncm_valid ? '<span class="text-emerald-400">✓</span>' : '<span class="text-rose-400">✕</span>'}</td>
-        <td class="code">${a.cest ? `${esc(a.cest_formatted)} ${a.cest_valid ? '<span class="text-emerald-400">✓</span>' : '<span class="text-rose-400">✕</span>'}` : '<span class="text-muted">—</span>'}</td>
+        <td class="text-ink">${esc(a.produto) || '(sem nome)'}</td>
+        <td class="code">${esc(a.ncm_formatted)} ${a.ncm_valid ? '<span class="text-emerald-700">✓</span>' : '<span class="text-rose-700">✕</span>'}</td>
+        <td class="code">${a.cest ? `${esc(a.cest_formatted)} ${a.cest_valid ? '<span class="text-emerald-700">✓</span>' : '<span class="text-rose-700">✕</span>'}` : '<span class="text-muted">—</span>'}</td>
         <td>${badge(a.status)}</td>
       </tr>
       <tr class="detalhe hidden bg-panel" data-detail="${i}"><td colspan="5" class="!p-4">${fiscalDetalhe(a)}</td></tr>`).join('');
@@ -842,12 +858,12 @@
           <p class="text-xs text-muted mt-1">NCM/CEST × tabelas oficiais</p>
           <div class="relative h-48 mt-4"><canvas class="fiscal-chart"></canvas>
             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p class="text-2xl font-bold text-white">${fmtInt(total)}</p><p class="text-xs text-muted">produtos</p>
+              <p class="text-2xl font-bold text-ink">${fmtInt(total)}</p><p class="text-xs text-muted">produtos</p>
             </div>
           </div>
           <div class="mt-6 flex flex-col gap-3">${legenda}</div>
           ${data.arquivo_analise ? `<button type="button" class="btn-analise mt-6 w-full btn btn-secondary">${ico('download')} Baixar análise completa</button>` : ''}
-          ${data.arquivo_ncm_cadastrar ? `<button type="button" class="btn-ncm-cadastrar mt-2 w-full btn btn-secondary !text-amber-300 !whitespace-normal">${ico('download')} NCMs a cadastrar no TOTVS (${(data.ncms_cadastrar || []).length})</button>` : ''}
+          ${data.arquivo_ncm_cadastrar ? `<button type="button" class="btn-ncm-cadastrar mt-2 w-full btn btn-secondary !text-amber-800 !whitespace-normal">${ico('download')} NCMs a cadastrar no TOTVS (${(data.ncms_cadastrar || []).length})</button>` : ''}
         </div>
         <div class="lg:col-span-2 panel p-5">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -860,7 +876,7 @@
                 <thead><tr><th>Linha</th><th>Produto</th><th>NCM</th><th>CEST</th><th>Situação</th></tr></thead>
                 <tbody>${linhas}</tbody>
               </table>
-            </div>` : `<div class="empty">${ico('check', 'w-5 h-5 text-emerald-400')}Nenhum produto requer atenção.</div>`}
+            </div>` : `<div class="empty">${ico('check', 'w-5 h-5 text-emerald-700')}Nenhum produto requer atenção.</div>`}
           <p class="text-[11px] text-muted mt-4">O CEST nunca é preenchido automaticamente. Fontes: Receita Federal (NCM) e CONFAZ Conv. ICMS 142/18 (CEST).</p>
         </div>
       </div>`;
@@ -878,8 +894,8 @@
         type: 'doughnut',
         data: {
           labels: resumo.map(([k]) => STATUS_FISCAL[k]?.label || k),
-          datasets: [{ data: resumo.map(([, n]) => n), backgroundColor: resumo.map(([k]) => STATUS_FISCAL[k]?.color || '#8a7d70'),
-                       borderColor: '#221c18', borderWidth: 2 }],
+          datasets: [{ data: resumo.map(([, n]) => n), backgroundColor: resumo.map(([k]) => STATUS_FISCAL[k]?.color || '#71818a'),
+                       borderColor: '#ffffff', borderWidth: 2 }],
         },
         options: { cutout: '72%', maintainAspectRatio: false, plugins: { legend: { display: false } } },
       });
@@ -945,7 +961,7 @@
       overlay.className = 'backdrop';
       const th = t => `<th>${t}</th>`;
       const secCorrecoes = correcoes.length ? `
-        <label class="flex items-start gap-3 mt-2 text-white font-medium cursor-pointer">
+        <label class="flex items-start gap-3 mt-2 text-ink font-medium cursor-pointer">
           <input type="checkbox" class="chk-aplicar check mt-1" checked>
           <span>Aplicar as ${correcoes.length} sugestões automáticas
             <span class="block text-muted text-sm font-normal">Desmarcado, essas linhas são rejeitadas.</span></span>
@@ -955,15 +971,15 @@
           <tbody>${correcoes.map(c => `
             <tr>
               <td class="text-muted">${esc(c.linha)}</td>
-              <td class="text-slate-200 font-medium">${esc(c.campo)}</td>
-              <td class="text-rose-300">${esc(c.de) || '—'}</td>
-              <td class="text-emerald-300">${esc(c.para)}</td>
+              <td class="text-ink font-medium">${esc(c.campo)}</td>
+              <td class="text-rose-800">${esc(c.de) || '—'}</td>
+              <td class="text-emerald-800">${esc(c.para)}</td>
               <td class="text-muted">${esc(c.motivo)}</td>
             </tr>`).join('')}
           </tbody>
         </table>` : '';
       const secAvisos = avisos.length ? `
-        <label class="flex items-start gap-3 mt-6 text-amber-300 font-medium cursor-pointer">
+        <label class="flex items-start gap-3 mt-6 text-amber-800 font-medium cursor-pointer">
           <input type="checkbox" class="chk-excluir check mt-1">
           <span>Gerar sem os ${avisos.length} produtos sem NCM aceito pelo TOTVS (sem troca possível)
             <span class="block text-muted text-sm font-normal">Esses NCMs vão dar erro na importação. Separados, o restante importa normalmente; eles saem na lista de rejeitados para tratar à parte. Desmarcado, eles ficam na planilha e a importação acusa erro.</span></span>
@@ -973,18 +989,18 @@
           <tbody>${avisos.map(a => `
             <tr>
               <td class="text-muted">${esc(a.linha)}</td>
-              <td class="text-slate-200">${esc(a.produto)}</td>
-              <td class="text-amber-300 font-medium">${esc(a.valor)}</td>
+              <td class="text-ink">${esc(a.produto)}</td>
+              <td class="text-amber-800 font-medium">${esc(a.valor)}</td>
             </tr>`).join('')}
           </tbody>
         </table>` : '';
       const secGrupos = grupos.length ? `
-        <p class="mt-6 text-white font-medium">Escolha o CEST por NCM
+        <p class="mt-6 text-ink font-medium">Escolha o CEST por NCM
           <span class="block text-muted text-sm font-normal">Já vem sugerido o CEST de água (0300700) ou, se o NCM não tiver, a primeira opção. Vale para todos os produtos do NCM; em \"Não escolher\" esses produtos são rejeitados.</span></p>
         ${grupos.map(g => `
           <div class="mt-3 border border-line rounded-lg p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <p class="text-slate-200 text-sm font-medium">NCM ${esc(g.ncm)} · ${g.produtos.length} produto(s)</p>
+              <p class="text-ink text-sm font-medium">NCM ${esc(g.ncm)} · ${g.produtos.length} produto(s)</p>
               <select class="sel-cest field max-w-md" data-ncm="${esc(g.ncm)}">
                 <option value="">Não escolher (rejeitar)</option>
                 ${g.opcoes.map(o => `<option value="${esc(o.codigo)}"${o.codigo === g.sugerido ? ' selected' : ''}>${esc(o.codigo)} — ${esc(o.descricao)}</option>`).join('')}
@@ -993,12 +1009,12 @@
             <p class="text-xs text-muted mt-2">${esc(g.produtos.slice(0, 5).map(p => p.produto || `linha ${p.linha}`).join(', '))}${g.produtos.length > 5 ? '…' : ''}</p>
           </div>`).join('')}` : '';
       const secNcm = gruposNcm.length ? `
-        <p class="mt-6 text-white font-medium">NCM não aceito pelo TOTVS
+        <p class="mt-6 text-ink font-medium">NCM não aceito pelo TOTVS
           <span class="block text-muted text-sm font-normal">O TOTVS não aceita esses NCMs. Escolha o NCM aceito (sucessor ou genérico da mesma posição) para o produto entrar na planilha; vale para todos os produtos do NCM. Ajuste depois na manutenção em massa. Em \"Não trocar\" o NCM é mantido e a importação acusa erro.</span></p>
         ${gruposNcm.map(g => `
           <div class="mt-3 border border-line rounded-lg p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <p class="text-slate-200 text-sm font-medium">NCM ${esc(g.ncm)} · ${g.produtos.length} produto(s)</p>
+              <p class="text-ink text-sm font-medium">NCM ${esc(g.ncm)} · ${g.produtos.length} produto(s)</p>
               <select class="sel-ncm field max-w-md" data-ncm="${esc(g.ncm)}">
                 <option value="">Não trocar</option>
                 ${g.opcoes.map(o => `<option value="${esc(o.codigo)}"${o.codigo === g.sugerido ? ' selected' : ''}>${esc(o.codigo)}${o.generico ? ' (genérico)' : ''} — ${esc(o.descricao)}</option>`).join('')}
@@ -1008,7 +1024,7 @@
           </div>`).join('')}` : '';
       overlay.innerHTML = `
         <div class="modal p-5 md:p-6 max-w-4xl max-h-[85vh] flex flex-col">
-          <p class="font-semibold text-white text-base">Antes de gerar a planilha</p>
+          <p class="font-semibold text-ink text-base">Antes de gerar a planilha</p>
           <div class="overflow-auto flex-1 mt-2">${secCorrecoes}${secNcm}${secGrupos}${secAvisos}</div>
           <div class="flex flex-wrap gap-3 justify-end mt-5">
             <button type="button" class="btn-cancelar btn btn-ghost">Cancelar</button>
@@ -1089,9 +1105,9 @@
         $('.erros-body').innerHTML = temErros ? data.erros.map(e => `
           <tr>
             <td class="text-muted">${esc(e.linha)}</td>
-            <td class="text-slate-200 font-medium">${esc(e.campo)}</td>
+            <td class="text-ink font-medium">${esc(e.campo)}</td>
             <td class="text-muted">${esc(e.valor) || '—'}</td>
-            <td class="text-rose-300">${esc(e.motivo)}</td>
+            <td class="text-rose-800">${esc(e.motivo)}</td>
           </tr>`).join('') : '';
 
         const temCorrecoes = data.correcoes && data.correcoes.length > 0;
@@ -1099,9 +1115,9 @@
         $('.correcoes-body').innerHTML = temCorrecoes ? data.correcoes.map(c => `
           <tr>
             <td class="text-muted">${esc(c.linha)}</td>
-            <td class="text-slate-200 font-medium">${esc(c.campo)}</td>
-            <td class="text-rose-300">${esc(c.de)}</td>
-            <td class="text-emerald-300">${esc(c.para)}</td>
+            <td class="text-ink font-medium">${esc(c.campo)}</td>
+            <td class="text-rose-800">${esc(c.de)}</td>
+            <td class="text-emerald-800">${esc(c.para)}</td>
             <td class="text-muted">${esc(c.motivo)}</td>
           </tr>`).join('') : '';
 
@@ -1110,8 +1126,8 @@
         $('.avisos-body').innerHTML = temAvisos ? data.avisos.map(a => `
           <tr>
             <td class="text-muted">${esc(a.linha)}</td>
-            <td class="text-slate-200">${esc(a.produto)}</td>
-            <td class="text-amber-300 font-medium">${esc(a.valor)}</td>
+            <td class="text-ink">${esc(a.produto)}</td>
+            <td class="text-amber-800 font-medium">${esc(a.valor)}</td>
           </tr>`).join('') : '';
 
         show('.results', true);
@@ -1149,10 +1165,10 @@
 
     const fonte = (tipo, f) => f ? `
       <div class="py-3">
-        <div class="flex items-center justify-between"><span class="text-white font-medium">${tipo}</span>
+        <div class="flex items-center justify-between"><span class="text-ink font-medium">${tipo}</span>
           <span class="flex items-center gap-1.5 text-xs text-muted"><span class="dot ${f.oficial ? 'bg-emerald-400' : 'bg-amber-400'}"></span>${f.oficial ? 'Oficial' : 'Secundária'}</span></div>
         <p class="text-xs text-muted mt-1">${esc(f.fonte)}</p>
-        <p class="text-xs text-slate-400 mt-0.5">${esc(f.versao)}</p>
+        <p class="text-xs text-muted mt-0.5">${esc(f.versao)}</p>
       </div>` : `<div class="py-3 text-xs text-muted">${tipo}: não importado</div>`;
     document.getElementById('homeFontes').innerHTML = fonte('NCM', ncm) + fonte('CEST', cest);
   }
@@ -1170,8 +1186,8 @@
         const r = await res.json();
         if (!res.ok) throw new Error(r.detail);
         out.innerHTML = `<div class="panel p-5">
-          <div class="flex justify-between items-center"><p class="font-semibold text-white">CEST ${esc(r.cest)}</p>
-          ${r.valid ? '<span class="text-emerald-400 text-sm">✓ Válido</span>' : '<span class="text-rose-400 text-sm">✕ Não encontrado</span>'}</div>
+          <div class="flex justify-between items-center"><p class="font-semibold text-ink">CEST ${esc(r.cest)}</p>
+          ${r.valid ? '<span class="text-emerald-700 text-sm">✓ Válido</span>' : '<span class="text-rose-700 text-sm">✕ Não encontrado</span>'}</div>
           <p class="text-sm text-muted mt-2">${esc(r.description) || 'Não consta no Convênio ICMS 142/18 vigente na data.'}</p></div>`;
         return;
       }
@@ -1183,7 +1199,7 @@
       out.innerHTML = `
         <div class="panel p-5">
           <div class="flex flex-wrap justify-between items-center gap-2">
-            <p class="font-semibold text-white">NCM ${esc(r.ncm_formatted)}${r.cest ? ` · CEST ${esc(r.cest_formatted)}` : ''}</p>
+            <p class="font-semibold text-ink">NCM ${esc(r.ncm_formatted)}${r.cest ? ` · CEST ${esc(r.cest_formatted)}` : ''}</p>
             ${badge(r.status)}
           </div>
           <p class="text-xs text-muted mt-1">Referência: ${fmtDate(r.reference_date)}</p>
@@ -1214,16 +1230,16 @@
 
   // ------------------------------------------------------------- consulta CNPJ / IE
   const COR_CNPJ = {
-    verde:    'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
-    azul:     'bg-blue-500/10 border-blue-500/30 text-blue-300',
-    vermelho: 'bg-rose-500/10 border-rose-500/30 text-rose-300',
-    laranja:  'bg-orange-500/10 border-orange-500/30 text-orange-300',
-    cinza:    'bg-slate-500/10 border-slate-500/30 text-slate-300',
+    verde:    'bg-emerald-50 border-emerald-300 text-emerald-800',
+    azul:     'bg-blue-50 border-blue-300 text-blue-800',
+    vermelho: 'bg-rose-50 border-rose-300 text-rose-800',
+    laranja:  'bg-orange-50 border-orange-300 text-orange-800',
+    cinza:    'bg-slate-100 border-slate-300 text-slate-700',
   };
   const fmtCnpj = c => c.replace(/^(\w{2})(\w{3})(\w{3})(\w{4})(\d{2})$/, '$1.$2.$3/$4-$5');
   const fmtDataIso = iso => fmtDate((iso || '').slice(0, 10));
   const campo = (rotulo, valor) => `
-    <div><dt class="text-xs text-muted">${rotulo}</dt><dd class="text-white break-words">${esc(valor || '—')}</dd></div>`;
+    <div><dt class="text-xs text-muted">${rotulo}</dt><dd class="text-ink break-words">${esc(valor || '—')}</dd></div>`;
   const bloco = (titulo, corpo) => `
     <section class="panel p-5"><p class="panel-title mb-4">${titulo}</p>${corpo}</section>`;
   const grade = campos => `<dl class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">${campos.join('')}</dl>`;
@@ -1235,12 +1251,12 @@
       ? `<p class="text-sm text-muted">${ies ? 'Nenhuma Inscrição Estadual encontrada.' : 'Não verificada nesta consulta. Tente novamente em um minuto.'}</p>`
       : `<ul class="flex flex-col gap-2 text-sm">${ies.map(i => `
           <li class="flex flex-wrap items-center gap-3">
-            <span class="text-white font-semibold w-8">${esc(i.uf)}</span>
-            <span class="text-white font-mono">${esc(i.numero)}</span>
-            <span class="${i.ativa ? 'text-emerald-400' : 'text-rose-400'}">${i.ativa ? 'Ativa' : 'Não ativa'}</span>
+            <span class="text-ink font-semibold w-8">${esc(i.uf)}</span>
+            <span class="text-ink font-mono">${esc(i.numero)}</span>
+            <span class="${i.ativa ? 'text-emerald-700' : 'text-rose-700'}">${i.ativa ? 'Ativa' : 'Não ativa'}</span>
           </li>`).join('')}</ul>`;
     const atividades = [r.cnae_principal, ...r.cnaes_secundarios].map((a, i) => `
-      <li><span class="font-mono text-white">${esc(a.codigo)}</span> ${esc(a.descricao)}${i ? '' : ' <span class="text-accent-soft">(principal)</span>'}</li>`).join('');
+      <li><span class="font-mono text-ink">${esc(a.codigo)}</span> ${esc(a.descricao)}${i ? '' : ' <span class="text-accent-hover">(principal)</span>'}</li>`).join('');
 
     return `<div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-3 border rounded-lg px-4 py-3 ${COR_CNPJ[r.status.cor] || COR_CNPJ.cinza}">
@@ -1388,7 +1404,7 @@
         kbFetch(`/api/kb/artigos?${new URLSearchParams({ q })}`), kbFetch('/api/kb/categorias')]);
       data = artigos;
       KB.categorias = cats.categorias;
-    } catch (err) { kb$('kbLista').innerHTML = `<p class="text-rose-300 p-2">${esc(err.message)}</p>`; return; }
+    } catch (err) { kb$('kbLista').innerHTML = `<p class="text-rose-800 p-2">${esc(err.message)}</p>`; return; }
     kbOpcoesCategoria(kb$('kbEditor').categoria, kb$('kbEditor').categoria.value);
 
     const total = data.artigos.length;
@@ -1410,13 +1426,13 @@
 
     kb$('kbLista').innerHTML = lista.map(g => `
       <details class="kb-group" open>
-        <summary class="flex items-center gap-2 px-2 py-2 cursor-pointer select-none text-xs font-medium text-muted hover:text-slate-200">
+        <summary class="flex items-center gap-2 px-2 py-2 cursor-pointer select-none text-xs font-medium text-muted hover:text-ink">
           <span class="kb-chevron">${ico('chevron', 'w-3 h-3')}</span>
           <span class="flex-1 truncate">${esc(g.nome)}</span>
           <span class="bg-panel border border-line rounded-md px-1.5 text-[11px] font-medium tabular-nums">${g.itens.length}</span>
         </summary>
         <div class="flex flex-col gap-0.5 pb-2">
-          ${g.itens.map(a => `<button type="button" data-id="${a.id}" class="kb-item w-full text-left px-3 py-2 rounded-r-lg leading-snug text-slate-300 hover:bg-raised hover:text-white ${KB.atual?.id === a.id ? 'active' : ''}">${esc(a.titulo)}</button>`).join('')}
+          ${g.itens.map(a => `<button type="button" data-id="${a.id}" class="kb-item w-full text-left px-3 py-2 rounded-r-lg leading-snug text-ink hover:bg-raised hover:text-ink ${KB.atual?.id === a.id ? 'active' : ''}">${esc(a.titulo)}</button>`).join('')}
         </div>
       </details>`).join('');
     kb$('kbLista').querySelectorAll('.kb-item').forEach(b => b.onclick = async () => {
@@ -1439,13 +1455,13 @@
   function kbVazio() {
     KB.atual = null;
     kb$('kbLeitor').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-muted py-16">
-      ${ico('book', 'w-10 h-10')}<p class="mt-4 text-slate-300">Nenhum artigo ainda.</p>
+      ${ico('book', 'w-10 h-10')}<p class="mt-4 text-ink">Nenhum artigo ainda.</p>
       <p class="text-xs mt-1">Entre como admin para criar um artigo ou importar um PDF.</p></div>`;
   }
 
   async function kbAbrir(id) {
     try { kbMostrar(await kbFetch(`/api/kb/artigos/${id}`)); }
-    catch (err) { kb$('kbLeitor').innerHTML = `<p class="text-rose-300">${esc(err.message)}</p>`; }
+    catch (err) { kb$('kbLeitor').innerHTML = `<p class="text-rose-800">${esc(err.message)}</p>`; }
     kb$('kbLista').querySelectorAll('.kb-item').forEach(b => {
       const ativo = Number(b.dataset.id) === id;
       b.classList.toggle('active', ativo);
@@ -1466,12 +1482,12 @@
       <header class="border-b border-line pb-5 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
-            <span class="text-xs text-accent-soft font-medium">${esc(a.categoria)}</span>
-            <h2 class="text-2xl font-semibold text-white mt-1 leading-tight">${esc(a.titulo)}</h2>
+            <span class="text-xs text-accent-hover font-medium">${esc(a.categoria)}</span>
+            <h2 class="text-2xl font-semibold text-ink mt-1 leading-tight">${esc(a.titulo)}</h2>
           </div>
           ${KB.senha ? `<div class="flex flex-wrap items-center gap-2">
             <label class="inline-flex items-center gap-1.5 text-muted border border-line rounded-lg pl-3 pr-1 hover:bg-panel" title="Mover para outra categoria">
-              ${ico('folder')}<select id="kbMover" aria-label="Mover para outra categoria" class="bg-transparent text-sm text-slate-200 py-1.5 pr-1 max-w-[180px] focus:outline-none cursor-pointer">
+              ${ico('folder')}<select id="kbMover" aria-label="Mover para outra categoria" class="bg-transparent text-sm text-ink py-1.5 pr-1 max-w-[180px] focus:outline-none cursor-pointer">
                 ${KB.categorias.map(c => `<option value="${c.id}" class="bg-card" ${kbChave(c.nome) === kbChave(a.categoria) ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}
               </select>
             </label>
@@ -1532,10 +1548,10 @@
         <div class="flex items-center gap-2">
           <input value="${esc(c.nome)}" data-original="${esc(c.nome)}" maxlength="60" aria-label="Nome da categoria" class="kb-cat-nome field !py-2" />
           <span class="text-xs text-muted w-16 text-right shrink-0">${plural(c.total)}</span>
-          <button type="button" class="kb-cat-salvar ${btn} text-emerald-300 hover:bg-emerald-500/10 invisible" title="Salvar nome" aria-label="Salvar nome">${ico('check')}</button>
-          <button type="button" class="kb-cat-excluir ${btn} text-rose-300 hover:bg-rose-500/10" title="Excluir categoria" aria-label="Excluir categoria">${ico('trash')}</button>
+          <button type="button" class="kb-cat-salvar ${btn} text-emerald-800 hover:bg-emerald-50 invisible" title="Salvar nome" aria-label="Salvar nome">${ico('check')}</button>
+          <button type="button" class="kb-cat-excluir ${btn} text-rose-800 hover:bg-rose-50" title="Excluir categoria" aria-label="Excluir categoria">${ico('trash')}</button>
         </div>
-        <div class="kb-cat-confirma hidden mt-2 flex flex-wrap items-center gap-2 bg-panel border border-line rounded-lg px-3 py-2 text-xs text-slate-300"></div>
+        <div class="kb-cat-confirma hidden mt-2 flex flex-wrap items-center gap-2 bg-panel border border-line rounded-lg px-3 py-2 text-xs text-ink"></div>
       </div>`).join('') : '<p class="text-muted text-sm py-6 text-center">Nenhuma categoria cadastrada.</p>';
 
     kb$('kbCatLista').querySelectorAll('.kb-cat').forEach(linha => {
@@ -1561,16 +1577,16 @@
     const acao = 'font-medium rounded-md px-2.5 py-1.5';
     if (cat.total && !outras.length) {
       box.innerHTML = `<span class="flex-1">Crie outra categoria para receber ${cat.total === 1 ? 'o artigo' : `os ${cat.total} artigos`} antes de excluir esta.</span>
-        <button type="button" class="kb-cat-nao ${acao} text-muted hover:text-white">Fechar</button>`;
+        <button type="button" class="kb-cat-nao ${acao} text-muted hover:text-ink">Fechar</button>`;
     } else {
       box.innerHTML = `${cat.total
           ? `<span>Mover ${cat.total === 1 ? '1 artigo' : `${cat.total} artigos`} para</span>
-             <select class="kb-cat-destino bg-card border border-line rounded-md px-2 py-1.5 text-slate-200 max-w-[160px]" aria-label="Categoria de destino">
+             <select class="kb-cat-destino bg-card border border-line rounded-md px-2 py-1.5 text-ink max-w-[160px]" aria-label="Categoria de destino">
                ${outras.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>`
           : `<span>Excluir “${esc(cat.nome)}”?</span>`}
         <span class="flex-1"></span>
-        <button type="button" class="kb-cat-nao ${acao} text-muted hover:text-white">Cancelar</button>
-        <button type="button" class="kb-cat-sim ${acao} bg-rose-500/15 text-rose-300 hover:bg-rose-500/25">${cat.total ? 'Mover e excluir' : 'Excluir'}</button>`;
+        <button type="button" class="kb-cat-nao ${acao} text-muted hover:text-ink">Cancelar</button>
+        <button type="button" class="kb-cat-sim ${acao} bg-rose-100 text-rose-800 hover:bg-rose-100">${cat.total ? 'Mover e excluir' : 'Excluir'}</button>`;
     }
     box.classList.remove('hidden');
     box.querySelector('.kb-cat-nao').addEventListener('click', () => box.classList.add('hidden'));
@@ -1639,7 +1655,7 @@
     const prev = tab === 'visualizar';
     document.querySelectorAll('.kb-tab').forEach(b => {
       const ativo = b.dataset.tab === tab;
-      b.classList.toggle('bg-accent', ativo); b.classList.toggle('text-white', ativo); b.classList.toggle('text-muted', !ativo);
+      b.classList.toggle('bg-accent-strong', ativo); b.classList.toggle('text-white', ativo); b.classList.toggle('text-muted', !ativo);
     });
     const f = kb$('kbEditor');
     if (prev) kb$('kbPreview').innerHTML = renderMd(f.conteudo.value);
