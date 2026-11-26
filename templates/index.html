@@ -17,7 +17,7 @@
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
           colors: {
-            base:    token('gelo'),
+            base:    token('fundo'),
             card:    token('branco'),
             panel:   token('superficie'),
             raised:  token('nevoa'),
@@ -35,20 +35,20 @@
   <style>
     /* ---- Tokens de design (canais RGB) ---- */
     :root {
-      --gelo: 220 239 240;             /* #DCEFF0  60% base */
+      --fundo: 233 237 240;            /* #E9EDF0  60% base (névoa ardósia) */
       --ardosia: 82 107 122;           /* #526B7A  30% estrutura */
       --cereja: 184 93 112;            /* #B85D70  10% destaque */
       --cereja-acao: 175 84 104;       /* #AF5468  fundo com texto branco (AA) */
       --cereja-escuro: 156 67 86;      /* #9C4356  hover e links */
       --branco: 255 255 255;
-      --superficie: 244 248 249;       /* #F4F8F9  áreas internas */
-      --nevoa: 232 238 240;            /* #E8EEF0  hover e cabeçalho de tabela */
-      --borda: 203 217 220;            /* #CBD9DC */
+      --superficie: 245 247 248;       /* #F5F7F8  áreas internas */
+      --nevoa: 237 240 243;            /* #EDF0F3  hover e cabeçalho de tabela */
+      --borda: 210 218 224;            /* #D2DAE0 */
       --grafite: 41 57 67;             /* #293943 */
       --texto-secundario: 90 106 115;  /* #5A6A73 */
       --sobre-ardosia: 228 237 240;    /* texto discreto sobre ardósia */
     }
-    body { background: rgb(var(--gelo)); color-scheme: light; }
+    body { background: rgb(var(--fundo)); color-scheme: light; }
     .drop-active { border-color: rgb(var(--cereja-acao)) !important; background: rgba(184,93,112,.08); }
     .fade-in { animation: fadeIn .2s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -167,7 +167,7 @@
       </span>
     </header>
 
-    <main class="flex-1 w-full max-w-[1440px] p-4 md:p-8">
+    <main class="flex-1 w-full max-w-[1440px] mx-auto p-4 md:p-8">
 
       <!-- ===================== DASHBOARD ===================== -->
       <section id="view-home" class="view">
