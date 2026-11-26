@@ -16,41 +16,53 @@
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
           colors: {
-            base:   '#0f1623',
-            panel:  '#172031',
-            card:   '#1b2536',
-            line:   '#263247',
-            muted:  '#8a96ab',
-            accent: '#487fff',
+            // Paleta Telha (60-30-10): ébano, estuque, violeta
+            base:   '#1c1612',
+            panel:  '#14100d',
+            card:   '#2a221c',
+            line:   '#3b312a',
+            muted:  '#ac9f91',
+            sand:   '#e3d9cc',
+            accent: { DEFAULT: '#6f3cff', soft: '#b094ff', hover: '#5a2be0' },
+            white:  '#f7f2ea',
+            slate:  { 200: '#ede5da', 300: '#e3d9cc', 400: '#c4b8a9', 500: '#8a7d70' },
           },
         },
       },
     };
   </script>
   <style>
-    body { background: #0f1623; color-scheme: dark; }
-    .drop-active { border-color: #487fff !important; background: rgba(72,127,255,.08); }
+    body { background: #1c1612; color-scheme: dark; }
+    .drop-active { border-color: #6f3cff !important; background: rgba(111,60,255,.08); }
     .fade-in { animation: fadeIn .3s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .nav-link.active { background: #487fff; color: #fff; box-shadow: 0 6px 16px -6px rgba(72,127,255,.7); }
+    .nav-link.active { background: #6f3cff; color: #f7f2ea; box-shadow: 0 6px 16px -6px rgba(111,60,255,.7); }
     .nav-link.active .nav-dot { background: #fff; }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-thumb { background: #263247; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb { background: #3b312a; border-radius: 8px; }
+    /* ---- Blocos claros (estuque) ---- */
+    .bg-card.sand { background: #e3d9cc; border-color: #e3d9cc; color: #1c1612; }
+    .sand .text-white, .sand .text-slate-200 { color: #1c1612; }
+    .sand .text-muted, .sand .text-slate-400 { color: #55493f; }
+    .sand .text-accent-soft, .sand .step { color: #4a1fc2; }
+    .sand .text-emerald-400 { color: #065f46; }
+    .sand .text-amber-300 { color: #854d0e; }
+    .sand .bg-panel { background: #f1ebe2; border-color: #cdc0b0; }
     /* ---- Base de Conhecimento ---- */
     .kb-item { border-left: 2px solid transparent; }
-    .kb-item.active { background: #172031; color: #fff; border-left-color: #487fff; }
+    .kb-item.active { background: #14100d; color: #f7f2ea; border-left-color: #6f3cff; }
     .kb-chevron { transition: transform .15s ease; }
     .kb-group[open] .kb-chevron { transform: rotate(90deg); }
-    .kb-article { font-size: 15px; line-height: 1.7; color: #c3ccdb; max-width: 78ch; overflow-wrap: anywhere; }
+    .kb-article { font-size: 15px; line-height: 1.7; color: #d8cec1; max-width: 78ch; overflow-wrap: anywhere; }
     /* mantém quebras de linha e recuos exatamente como digitados */
     .kb-article p, .kb-article li { white-space: pre-wrap; }
     .kb-article h1, .kb-article h2, .kb-article h3, .kb-article h4 {
-      color: #fff; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; scroll-margin-top: 5.5rem;
+      color: #f7f2ea; font-weight: 600; line-height: 1.35; letter-spacing: -.01em; scroll-margin-top: 5.5rem;
     }
     .kb-article h1 { font-size: 1.3rem; margin: 2rem 0 .75rem; }
-    .kb-article h2 { font-size: 1.125rem; margin: 2rem 0 .75rem; padding-top: 1.5rem; border-top: 1px solid #263247; }
+    .kb-article h2 { font-size: 1.125rem; margin: 2rem 0 .75rem; padding-top: 1.5rem; border-top: 1px solid #3b312a; }
     .kb-article h3 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
-    .kb-article h4 { font-size: .9rem; margin: 1.25rem 0 .5rem; color: #cbd5e1; }
+    .kb-article h4 { font-size: .9rem; margin: 1.25rem 0 .5rem; color: #e3d9cc; }
     .kb-article h1 + h2, .kb-article h2 + h2, .kb-article h2 + h3, .kb-article h3 + h3 {
       margin-top: .75rem; padding-top: 0; border-top: 0;
     }
@@ -61,28 +73,28 @@
     .kb-article ul { list-style: disc; }
     .kb-article ol { list-style: decimal; }
     .kb-article li { margin: .3rem 0; padding-left: .15rem; }
-    .kb-article li::marker { color: #8a96ab; }
-    .kb-article strong { color: #fff; font-weight: 600; }
-    .kb-article a { color: #6f9bff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(111,155,255,.4); }
+    .kb-article li::marker { color: #ac9f91; }
+    .kb-article strong { color: #f7f2ea; font-weight: 600; }
+    .kb-article a { color: #b094ff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(176,148,255,.4); }
     .kb-article a:hover { text-decoration-color: currentColor; }
-    .kb-article hr { border: 0; border-top: 1px solid #263247; margin: 1.75rem 0; }
-    .kb-article blockquote { margin: 1rem 0; padding: .6rem 1rem; border-left: 3px solid #487fff; background: rgba(72,127,255,.07); border-radius: 0 8px 8px 0; }
+    .kb-article hr { border: 0; border-top: 1px solid #3b312a; margin: 1.75rem 0; }
+    .kb-article blockquote { margin: 1rem 0; padding: .6rem 1rem; border-left: 3px solid #6f3cff; background: rgba(111,60,255,.07); border-radius: 0 8px 8px 0; }
     .kb-article blockquote p { margin: .25rem 0; }
-    .kb-article code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85em; background: #0f1623; border: 1px solid #263247; border-radius: 6px; padding: .1em .4em; color: #e2e8f0; }
-    .kb-article pre { margin: 0; padding: .9rem 1rem; background: #0f1623; border: 1px solid #263247; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+    .kb-article code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .85em; background: #14100d; border: 1px solid #3b312a; border-radius: 6px; padding: .1em .4em; color: #ede5da; }
+    .kb-article pre { margin: 0; padding: .9rem 1rem; background: #14100d; border: 1px solid #3b312a; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
     .kb-article pre code { background: none; border: 0; padding: 0; font-size: inherit; white-space: pre; }
     .kb-pre { position: relative; margin: 1rem 0; }
-    .kb-copy { position: absolute; top: .5rem; right: .5rem; display: inline-flex; align-items: center; gap: .35rem; font-size: 11px; color: #8a96ab; background: #1b2536; border: 1px solid #263247; border-radius: 6px; padding: .25rem .5rem; opacity: 0; transition: opacity .15s, color .15s; }
+    .kb-copy { position: absolute; top: .5rem; right: .5rem; display: inline-flex; align-items: center; gap: .35rem; font-size: 11px; color: #ac9f91; background: #2a221c; border: 1px solid #3b312a; border-radius: 6px; padding: .25rem .5rem; opacity: 0; transition: opacity .15s, color .15s; }
     .kb-pre:hover .kb-copy, .kb-copy:focus-visible { opacity: 1; }
-    .kb-copy:hover { color: #fff; }
-    .kb-table { margin: 1rem 0; overflow-x: auto; border: 1px solid #263247; border-radius: 10px; }
+    .kb-copy:hover { color: #f7f2ea; }
+    .kb-table { margin: 1rem 0; overflow-x: auto; border: 1px solid #3b312a; border-radius: 10px; }
     .kb-article table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-    .kb-article th { text-align: left; font-weight: 600; color: #fff; background: #172031; }
-    .kb-article th, .kb-article td { padding: .55rem .8rem; border-bottom: 1px solid #263247; vertical-align: top; }
+    .kb-article th { text-align: left; font-weight: 600; color: #f7f2ea; background: #14100d; }
+    .kb-article th, .kb-article td { padding: .55rem .8rem; border-bottom: 1px solid #3b312a; vertical-align: top; }
     .kb-article tr:last-child td { border-bottom: 0; }
     .kb-article img { max-width: 100%; border-radius: 8px; }
-    .kb-toc button { border-left: 1px solid #263247; }
-    .kb-toc button:hover { color: #fff; border-left-color: #487fff; }
+    .kb-toc button { border-left: 1px solid #3b312a; }
+    .kb-toc button:hover { color: #f7f2ea; border-left-color: #6f3cff; }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
     /* ---- Impressão / PDF da consulta CNPJ: só o resultado, em fundo claro ---- */
@@ -157,17 +169,17 @@
 
         <div class="grid lg:grid-cols-3 gap-4 mt-4">
           <div class="lg:col-span-2 grid sm:grid-cols-2 gap-4">
-            <a href="#produtos" class="group bg-card border border-line rounded-2xl p-6 hover:border-accent transition">
-              <div class="w-11 h-11 rounded-xl bg-accent/15 text-accent flex items-center justify-center text-xl">📦</div>
+            <a href="#produtos" class="sand group bg-card border border-line rounded-2xl p-6 hover:border-accent transition">
+              <div class="w-11 h-11 rounded-xl bg-accent/15 text-accent-soft flex items-center justify-center text-xl">📦</div>
               <p class="font-semibold text-white mt-4">Cadastro de Produtos</p>
               <p class="text-sm text-muted mt-1">Gera a PlanilhaImportaçãoLoja.xlsm com produtos, grupos e unidades.</p>
-              <p class="text-sm text-accent mt-4 group-hover:translate-x-1 transition">Converter →</p>
+              <p class="text-sm text-accent-soft mt-4 group-hover:translate-x-1 transition">Converter →</p>
             </a>
             <a href="#regras-ncm" class="group bg-card border border-line rounded-2xl p-6 hover:border-accent transition">
               <div class="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xl">🧾</div>
               <p class="font-semibold text-white mt-4">Regra NCM / Dados Fiscais</p>
               <p class="text-sm text-muted mt-1">Gera a ImportacaoRegraNCMDadosFiscais.xlsx com validação oficial de NCM/CEST.</p>
-              <p class="text-sm text-accent mt-4 group-hover:translate-x-1 transition">Converter →</p>
+              <p class="text-sm text-accent-soft mt-4 group-hover:translate-x-1 transition">Converter →</p>
             </a>
             <form id="homeBusca" class="bg-card border border-line rounded-2xl p-6 flex flex-col">
               <div class="w-11 h-11 rounded-xl bg-violet-500/15 text-violet-400 flex items-center justify-center text-xl">🔎</div>
@@ -175,7 +187,7 @@
               <p class="text-sm text-muted mt-1">Digite um NCM ou CEST e veja a validação oficial.</p>
               <div class="flex gap-2 mt-4">
                 <input name="codigo" type="text" required maxlength="20" placeholder="NCM ou CEST" class="field" aria-label="NCM ou CEST" />
-                <button type="submit" class="bg-accent hover:bg-blue-500 text-white text-sm font-semibold px-4 rounded-lg transition">Consultar</button>
+                <button type="submit" class="bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-4 rounded-lg transition">Consultar</button>
               </div>
             </form>
             <div class="bg-card border border-line rounded-2xl p-6">
@@ -183,12 +195,12 @@
               <p class="font-semibold text-white mt-4">Ferramentas externas</p>
               <p class="text-sm text-muted mt-1">Abrem em nova aba.</p>
               <ul class="mt-4 flex flex-col gap-2 text-sm">
-                <li><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">Cartão CNPJ (Receita Federal) ↗</a></li>
-                <li><a href="https://www.confaz.fazenda.gov.br/" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">CONFAZ ↗</a></li>
+                <li><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer" class="text-accent-soft hover:underline">Cartão CNPJ (Receita Federal) ↗</a></li>
+                <li><a href="https://www.confaz.fazenda.gov.br/" target="_blank" rel="noopener noreferrer" class="text-accent-soft hover:underline">CONFAZ ↗</a></li>
               </ul>
             </div>
           </div>
-          <div class="bg-card border border-line rounded-2xl p-6">
+          <div class="sand bg-card border border-line rounded-2xl p-6">
             <p class="font-semibold text-white">Fontes oficiais</p>
             <p class="text-xs text-muted mt-1">Tabelas usadas na validação fiscal</p>
             <div id="homeFontes" class="mt-4 flex flex-col gap-3 text-sm"></div>
@@ -225,7 +237,7 @@
             </div>
             <div data-slot="actions"></div>
           </div>
-          <div class="bg-card border border-line rounded-2xl p-6 text-sm">
+          <div class="sand bg-card border border-line rounded-2xl p-6 text-sm">
             <p class="font-semibold text-white">Como funciona</p>
             <ol class="mt-4 flex flex-col gap-3 text-muted">
               <li><span class="step">1</span> Envie a planilha de cadastro do cliente (.xls, .xlsx ou .csv).</li>
@@ -272,7 +284,7 @@
             </div>
             <div data-slot="actions"></div>
           </div>
-          <div class="bg-card border border-line rounded-2xl p-6 text-sm">
+          <div class="sand bg-card border border-line rounded-2xl p-6 text-sm">
             <p class="font-semibold text-white">Como funciona</p>
             <ol class="mt-4 flex flex-col gap-3 text-muted">
               <li><span class="step">1</span> Use a mesma planilha de cadastro de produtos do cliente.</li>
@@ -341,7 +353,7 @@
             <label class="field-label">Data de referência</label>
             <input name="data" type="date" class="field" />
           </div>
-          <button type="submit" class="bg-accent hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
+          <button type="submit" class="bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
         </form>
         <div id="consultaResultado" class="mt-4"></div>
       </section>
@@ -354,7 +366,7 @@
             <label class="field-label" for="cnpjInput">CNPJ</label>
             <input id="cnpjInput" name="cnpj" type="text" required maxlength="18" placeholder="00.000.000/0000-00" class="field" />
           </div>
-          <button type="submit" class="bg-accent hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
+          <button type="submit" class="bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
         </form>
         <div id="cnpjResultado" class="mt-4" aria-live="polite"></div>
       </section>
@@ -385,7 +397,7 @@
               <span class="inline-flex items-center gap-2 text-xs text-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Modo administrador</span>
               <div class="flex-1"></div>
               <button type="button" id="kbCatBtn" class="inline-flex items-center gap-1.5 hover:bg-panel border border-line text-slate-200 text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="folder"></span> Categorias</button>
-              <button type="button" id="kbNovo" class="inline-flex items-center gap-1.5 bg-accent hover:bg-blue-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="plus"></span> Novo artigo</button>
+              <button type="button" id="kbNovo" class="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="plus"></span> Novo artigo</button>
               <button type="button" id="kbPdfBtn" class="inline-flex items-center gap-1.5 hover:bg-panel border border-line text-slate-200 text-sm font-medium px-3.5 py-2 rounded-lg transition"><span data-ico="upload"></span> Importar PDF</button>
               <input type="file" id="kbPdf" accept="application/pdf,.pdf" class="hidden" />
               <button type="button" id="kbSair" class="text-muted hover:text-white text-sm px-2 py-2">Sair</button>
@@ -394,7 +406,7 @@
             <div id="kbLeitor" class="bg-card border border-line rounded-2xl p-6 md:p-8 min-h-[300px]"></div>
 
             <form id="kbEditor" class="hidden bg-card border border-line rounded-2xl p-6 flex flex-col gap-4">
-              <div id="kbEditorInfo" class="hidden bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-blue-300"></div>
+              <div id="kbEditorInfo" class="hidden bg-accent/10 border border-accent/30 rounded-lg p-3 text-sm text-accent-soft"></div>
               <div class="grid sm:grid-cols-3 gap-4">
                 <div class="sm:col-span-2">
                   <label class="field-label">Título</label>
@@ -446,7 +458,7 @@
     </div>
     <form id="kbCatNova" class="flex gap-2 px-6 py-4 border-b border-line">
       <input name="nome" required maxlength="60" placeholder="Nome da nova categoria" aria-label="Nome da nova categoria" class="field" />
-      <button type="submit" class="inline-flex items-center gap-1.5 shrink-0 bg-accent hover:bg-blue-500 text-white text-sm font-medium px-4 rounded-lg transition"><span data-ico="plus"></span> Adicionar</button>
+      <button type="submit" class="inline-flex items-center gap-1.5 shrink-0 bg-accent hover:bg-accent-hover text-white text-sm font-medium px-4 rounded-lg transition"><span data-ico="plus"></span> Adicionar</button>
     </form>
     <div id="kbCatErro" class="hidden mx-6 mt-4 bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2 text-rose-300 text-sm"></div>
     <div id="kbCatLista" class="flex-1 overflow-y-auto px-6 py-2"></div>
@@ -503,9 +515,9 @@
 
     <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-line">
       <label class="flex items-center gap-2 text-xs text-muted cursor-pointer select-none">
-        <input id="avisoNaoMostrar" type="checkbox" class="accent-[#487fff]" /> Não mostrar novamente
+        <input id="avisoNaoMostrar" type="checkbox" class="accent-[#6f3cff]" /> Não mostrar novamente
       </label>
-      <button type="button" id="avisoFechar" class="bg-accent hover:bg-blue-500 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition">Entendi</button>
+      <button type="button" id="avisoFechar" class="bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition">Entendi</button>
     </div>
   </div>
 </div>
@@ -513,7 +525,7 @@
 <!-- ===================== COMPONENTES ===================== -->
 <template id="tpl-dropzone">
   <div class="dropzone border-2 border-dashed border-line rounded-xl p-10 text-center cursor-pointer transition-all hover:border-accent/60">
-    <div class="w-12 h-12 mx-auto rounded-full bg-accent/15 text-accent flex items-center justify-center">
+    <div class="w-12 h-12 mx-auto rounded-full bg-accent/15 text-accent-soft flex items-center justify-center">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
               d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
@@ -526,13 +538,13 @@
   <input type="file" accept=".xls,.xlsx,.xlsm,.csv" class="file-input hidden" />
   <div class="file-info hidden mt-4 flex items-center gap-3 p-3 bg-accent/10 border border-accent/30 rounded-lg">
     <span>📄</span>
-    <span class="file-name text-sm text-blue-300 font-medium truncate flex-1"></span>
+    <span class="file-name text-sm text-accent-soft font-medium truncate flex-1"></span>
     <button type="button" class="btn-reset text-muted hover:text-white shrink-0" aria-label="Remover arquivo">✕</button>
   </div>
 </template>
 
 <template id="tpl-actions">
-  <button type="button" class="btn-processar hidden mt-5 w-full bg-accent hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition">
+  <button type="button" class="btn-processar hidden mt-5 w-full bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-lg transition">
     Processar planilha
   </button>
   <div class="loading hidden mt-5 flex items-center justify-center gap-3 text-muted">
@@ -617,7 +629,7 @@
 <style type="text/tailwindcss">
   .field-label { @apply block text-sm font-medium text-slate-300 mb-1.5; }
   .field { @apply w-full bg-panel border border-line rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-muted focus:outline-none focus:ring-2 focus:ring-accent/60; }
-  .step { @apply inline-flex w-6 h-6 mr-2 items-center justify-center rounded-full bg-accent/15 text-accent text-xs font-semibold; }
+  .step { @apply inline-flex w-6 h-6 mr-2 items-center justify-center rounded-full bg-accent/15 text-accent-soft text-xs font-semibold; }
 </style>
 
 <script>
@@ -663,7 +675,7 @@
 
   const STATUS_FISCAL = {
     VALID:             { label: 'NCM e CEST relacionados',   badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', color: '#10b981', ok: true },
-    NO_CEST:           { label: 'Sem CEST relacionado',      badge: 'bg-slate-500/15 text-slate-300 border-slate-500/30',       color: '#64748b', ok: true },
+    NO_CEST:           { label: 'Sem CEST relacionado',      badge: 'bg-slate-500/15 text-slate-300 border-slate-500/30',       color: '#8a7d70', ok: true },
     MULTIPLE_CEST:     { label: 'Múltiplos CESTs possíveis', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',       color: '#f59e0b' },
     NEEDS_REVIEW:      { label: 'Necessita revisão',         badge: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',    color: '#eab308' },
     NCM_CEST_MISMATCH: { label: 'CEST sem relação com NCM',  badge: 'bg-orange-500/15 text-orange-300 border-orange-500/30',    color: '#f97316' },
@@ -750,7 +762,7 @@
     const atencao = (data.analise || []).filter(a => !STATUS_FISCAL[a.status]?.ok);
 
     const legenda = resumo.map(([k, n]) => {
-      const st = STATUS_FISCAL[k] || { label: k, color: '#64748b' };
+      const st = STATUS_FISCAL[k] || { label: k, color: '#8a7d70' };
       const pct = Math.round((n / total) * 100);
       return `
         <div>
@@ -782,7 +794,7 @@
             </div>
           </div>
           <div class="mt-6 flex flex-col gap-3">${legenda}</div>
-          ${data.arquivo_analise ? `<button type="button" class="btn-analise mt-6 w-full bg-accent/15 hover:bg-accent/25 text-blue-300 border border-accent/30 font-medium py-2.5 rounded-lg text-sm transition">📊 Baixar análise completa</button>` : ''}
+          ${data.arquivo_analise ? `<button type="button" class="btn-analise mt-6 w-full bg-accent/15 hover:bg-accent/25 text-accent-soft border border-accent/30 font-medium py-2.5 rounded-lg text-sm transition">📊 Baixar análise completa</button>` : ''}
           ${data.arquivo_ncm_cadastrar ? `<button type="button" class="btn-ncm-cadastrar mt-3 w-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-medium py-2.5 rounded-lg text-sm transition">📋 NCMs a cadastrar no TOTVS (${(data.ncms_cadastrar || []).length})</button>` : ''}
         </div>
         <div class="lg:col-span-2 bg-card border border-line rounded-2xl p-6">
@@ -822,8 +834,8 @@
         type: 'doughnut',
         data: {
           labels: resumo.map(([k]) => STATUS_FISCAL[k]?.label || k),
-          datasets: [{ data: resumo.map(([, n]) => n), backgroundColor: resumo.map(([k]) => STATUS_FISCAL[k]?.color || '#64748b'),
-                       borderColor: '#1b2536', borderWidth: 3 }],
+          datasets: [{ data: resumo.map(([, n]) => n), backgroundColor: resumo.map(([k]) => STATUS_FISCAL[k]?.color || '#8a7d70'),
+                       borderColor: '#2a221c', borderWidth: 3 }],
         },
         options: { cutout: '72%', maintainAspectRatio: false, plugins: { legend: { display: false } } },
       });
@@ -1184,12 +1196,12 @@
             <span class="${i.ativa ? 'text-emerald-400' : 'text-rose-400'}">${i.ativa ? 'Ativa' : 'Não ativa'}</span>
           </li>`).join('')}</ul>`;
     const atividades = [r.cnae_principal, ...r.cnaes_secundarios].map((a, i) => `
-      <li><span class="font-mono text-white">${esc(a.codigo)}</span> ${esc(a.descricao)}${i ? '' : ' <span class="text-accent">(principal)</span>'}</li>`).join('');
+      <li><span class="font-mono text-white">${esc(a.codigo)}</span> ${esc(a.descricao)}${i ? '' : ' <span class="text-accent-soft">(principal)</span>'}</li>`).join('');
 
     return `<div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-3 border rounded-xl p-4 ${COR_CNPJ[r.status.cor] || COR_CNPJ.cinza}">
         <p class="font-semibold">${esc(r.status.texto)}</p>
-        <button id="cnpjPdf" type="button" class="bg-accent hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg">Salvar em PDF</button>
+        <button id="cnpjPdf" type="button" class="bg-accent hover:bg-accent-hover text-white text-sm font-semibold px-4 py-2 rounded-lg">Salvar em PDF</button>
       </div>
       ${bloco(esc(r.razao_social), grade([
         campo('CNPJ', fmtCnpj(r.cnpj)), campo('Nome fantasia', r.nome_fantasia), campo('Tipo', r.tipo),
@@ -1429,7 +1441,7 @@
       <header class="border-b border-line pb-5 mb-6">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
-            <span class="text-[11px] uppercase tracking-wider text-accent font-semibold">${esc(a.categoria)}</span>
+            <span class="text-[11px] uppercase tracking-wider text-accent-soft font-semibold">${esc(a.categoria)}</span>
             <h2 class="text-2xl font-semibold text-white mt-1.5 leading-tight tracking-tight">${esc(a.titulo)}</h2>
           </div>
           ${KB.senha ? `<div class="flex flex-wrap items-center gap-2">
