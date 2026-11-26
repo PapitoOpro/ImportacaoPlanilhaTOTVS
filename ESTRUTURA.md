@@ -214,6 +214,7 @@ write_error_report(errors, path)                           # Gera erros.xlsx
 | --- | --- | --- |
 | GET | `/` | Interface web (index.html) |
 | POST | `/processar` | Recebe planilha, processa, retorna JSON com stats, erros e arquivos em base64 |
+| GET | `/api/cnpj?cnpj=` | Consulta CNPJ / IE (CNPJ.ws, reserva CNPJá sem IE; cache de 48h) |
 
 **Resposta de `/processar`:**
 

@@ -85,6 +85,14 @@
     .kb-toc button:hover { color: #fff; border-left-color: #487fff; }
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
+    /* ---- Impressão / PDF da consulta CNPJ: só o resultado, em fundo claro ---- */
+    @media print {
+      #sidebar, #overlay, header, footer, #view-cnpj > :first-child, #cnpjForm, #cnpjPdf, #avisoModal { display: none !important; }
+      body { background: #fff !important; color-scheme: light; }
+      body > div { margin: 0 !important; min-height: 0 !important; }
+      #cnpjResultado, #cnpjResultado * { color: #111 !important; background: transparent !important; border-color: #ccc !important; }
+      #cnpjResultado section { break-inside: avoid; }
+    }
   </style>
 </head>
 <body class="min-h-screen font-sans text-slate-300 antialiased">
@@ -117,6 +125,10 @@
       <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Base Fiscal</p>
       <a href="#consulta" data-view="consulta" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
         <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Consulta NCM / CEST
+      </a>
+      <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Clientes</p>
+      <a href="#cnpj" data-view="cnpj" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
+        <span class="nav-dot w-1.5 h-1.5 rounded-full bg-muted"></span> Consulta CNPJ / IE
       </a>
       <p class="px-3 pt-5 pb-2 text-[11px] font-semibold text-muted uppercase tracking-wider">Ajuda</p>
       <a href="#kb" data-view="kb" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-card">
@@ -171,7 +183,6 @@
               <p class="font-semibold text-white mt-4">Ferramentas externas</p>
               <p class="text-sm text-muted mt-1">Abrem em nova aba.</p>
               <ul class="mt-4 flex flex-col gap-2 text-sm">
-                <li><a href="https://www.sintegraconsulta.com.br/" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">Consulta CNPJ / IE do cliente (Sintegra) ↗</a></li>
                 <li><a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">Cartão CNPJ (Receita Federal) ↗</a></li>
                 <li><a href="https://www.confaz.fazenda.gov.br/" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">CONFAZ ↗</a></li>
               </ul>
@@ -333,6 +344,19 @@
           <button type="submit" class="bg-accent hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
         </form>
         <div id="consultaResultado" class="mt-4"></div>
+      </section>
+
+      <!-- ===================== CONSULTA CNPJ / IE ===================== -->
+      <section id="view-cnpj" class="view hidden">
+        <div class="page-head" data-title="Consulta CNPJ / IE" data-crumb="Clientes / Consulta CNPJ"></div>
+        <form id="cnpjForm" class="bg-card border border-line rounded-2xl p-6 grid sm:grid-cols-4 gap-4 items-end">
+          <div class="sm:col-span-3">
+            <label class="field-label" for="cnpjInput">CNPJ</label>
+            <input id="cnpjInput" name="cnpj" type="text" required maxlength="18" placeholder="00.000.000/0000-00" class="field" />
+          </div>
+          <button type="submit" class="bg-accent hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition">Consultar</button>
+        </form>
+        <div id="cnpjResultado" class="mt-4" aria-live="polite"></div>
       </section>
 
       <!-- ===================== BASE DE CONHECIMENTO ===================== -->
@@ -1130,6 +1154,84 @@
     f.cest.value = ehCest ? codigo : '';
     location.hash = '#consulta';
     consultar(f.ncm.value, f.cest.value, f.data.value);
+  });
+
+  // ------------------------------------------------------------- consulta CNPJ / IE
+  const COR_CNPJ = {
+    verde:    'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+    azul:     'bg-blue-500/10 border-blue-500/30 text-blue-300',
+    vermelho: 'bg-rose-500/10 border-rose-500/30 text-rose-300',
+    laranja:  'bg-orange-500/10 border-orange-500/30 text-orange-300',
+    cinza:    'bg-slate-500/10 border-slate-500/30 text-slate-300',
+  };
+  const fmtCnpj = c => c.replace(/^(\w{2})(\w{3})(\w{3})(\w{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+  const fmtDataIso = iso => fmtDate((iso || '').slice(0, 10));
+  const campo = (rotulo, valor) => `
+    <div><dt class="text-xs text-muted">${rotulo}</dt><dd class="text-white break-words">${esc(valor || '—')}</dd></div>`;
+  const bloco = (titulo, corpo) => `
+    <section class="bg-card border border-line rounded-2xl p-6"><p class="font-semibold text-white mb-4">${titulo}</p>${corpo}</section>`;
+  const grade = campos => `<dl class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">${campos.join('')}</dl>`;
+
+  function renderCnpj(r) {
+    const e = r.endereco;
+    const ies = r.inscricoes_estaduais;
+    const tabelaIe = !ies?.length
+      ? `<p class="text-sm text-muted">${ies ? 'Nenhuma Inscrição Estadual encontrada.' : 'Não verificada nesta consulta. Tente novamente em um minuto.'}</p>`
+      : `<ul class="flex flex-col gap-2 text-sm">${ies.map(i => `
+          <li class="flex flex-wrap items-center gap-3">
+            <span class="text-white font-semibold w-8">${esc(i.uf)}</span>
+            <span class="text-white font-mono">${esc(i.numero)}</span>
+            <span class="${i.ativa ? 'text-emerald-400' : 'text-rose-400'}">${i.ativa ? 'Ativa' : 'Não ativa'}</span>
+          </li>`).join('')}</ul>`;
+    const atividades = [r.cnae_principal, ...r.cnaes_secundarios].map((a, i) => `
+      <li><span class="font-mono text-white">${esc(a.codigo)}</span> ${esc(a.descricao)}${i ? '' : ' <span class="text-accent">(principal)</span>'}</li>`).join('');
+
+    return `<div class="flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border rounded-xl p-4 ${COR_CNPJ[r.status.cor] || COR_CNPJ.cinza}">
+        <p class="font-semibold">${esc(r.status.texto)}</p>
+        <button id="cnpjPdf" type="button" class="bg-accent hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg">Salvar em PDF</button>
+      </div>
+      ${bloco(esc(r.razao_social), grade([
+        campo('CNPJ', fmtCnpj(r.cnpj)), campo('Nome fantasia', r.nome_fantasia), campo('Tipo', r.tipo),
+        campo('Situação cadastral', r.situacao_cadastral), campo('Data da situação', fmtDataIso(r.data_situacao)),
+        campo('Abertura', fmtDataIso(r.data_abertura)), campo('Regime tributário', r.regime_tributario),
+        campo('Porte', r.porte), campo('Natureza jurídica', r.natureza_juridica),
+        campo('Capital social', r.capital_social?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })),
+      ]))}
+      ${bloco('Inscrição Estadual', tabelaIe)}
+      ${bloco('Endereço e contato', grade([
+        campo('Logradouro', [e.logradouro, e.numero].filter(Boolean).join(', ')), campo('Complemento', e.complemento),
+        campo('Bairro', e.bairro), campo('Município / UF', [e.municipio, e.uf].filter(Boolean).join(' / ')),
+        campo('CEP', e.cep), campo('Telefone', r.telefones.join(' · ')), campo('E-mail', r.email),
+      ]))}
+      ${bloco('Atividades econômicas (CNAE)', `<ul class="flex flex-col gap-1.5 text-sm">${atividades}</ul>`)}
+      <p class="text-xs text-muted">Fonte: ${esc(r.fonte)} · dados atualizados em ${fmtDataIso(r.atualizado_em)} · consulta em ${new Date().toLocaleString('pt-BR')}.
+        Relatório informativo: não substitui o comprovante da Receita Federal nem a consulta oficial na Sefaz.</p>
+    </div>`;
+  }
+
+  document.getElementById('cnpjForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const out = document.getElementById('cnpjResultado');
+    const botao = e.target.querySelector('button');
+    botao.disabled = true;
+    out.innerHTML = '<p class="text-sm text-muted">Consultando…</p>';
+    try {
+      const res = await fetch(`/api/cnpj?${new URLSearchParams({ cnpj: e.target.cnpj.value })}`);
+      const r = await res.json();
+      if (!res.ok) throw new Error(typeof r.detail === 'string' ? r.detail : 'CNPJ inválido');
+      out.innerHTML = renderCnpj(r);
+      document.getElementById('cnpjPdf').addEventListener('click', () => {
+        const titulo = document.title;
+        document.title = `Consulta CNPJ ${r.cnpj}`;  // vira o nome sugerido do PDF
+        window.addEventListener('afterprint', () => { document.title = titulo; }, { once: true });
+        window.print();
+      });
+    } catch (err) {
+      out.innerHTML = `<div class="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-rose-300 text-sm">${esc(err.message || 'Falha na consulta')}</div>`;
+    } finally {
+      botao.disabled = false;
+    }
   });
 
   // ------------------------------------------------------------- navegação

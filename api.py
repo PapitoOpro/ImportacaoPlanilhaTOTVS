@@ -16,6 +16,8 @@ from fastapi.staticfiles import StaticFiles
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+from cnpj_api import build_router as build_cnpj_router
+from cnpj_service import CnpjService
 from config import (COLUMN_MAP, FIELD_FILL_DEFAULTS, FIELD_RULES,
                     REQUIRED_FIELDS, TEMPLATE_COLUMNS, TEMPLATE_DEFAULTS)
 from fiscal import (REGIMES, build_regras, validate_uf, write_analise_report, write_ncm_cadastrar_report,
@@ -76,6 +78,7 @@ def get_kb() -> KnowledgeBase:
 
 app = FastAPI(title="TOTVS Food — Importação de Produtos")
 app.include_router(build_kb_router(get_kb))
+app.include_router(build_cnpj_router(CnpjService()))
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
 
 
