@@ -313,6 +313,9 @@
           </div>
         </div>
         <div data-slot="results"></div>
+        <div data-slot="aviso" class="hidden mt-4 alert alert-warn">
+          <span data-ico="alert" class="flex mt-0.5"></span> LEMBRE-SE de ajustar os dados fiscais na manutenção em massa, arquivo gerado com regra do simples nacional com NCM 21069090!
+        </div>
         <div data-slot="fiscal" class="hidden mt-4 fade-in"></div>
         <div id="aprender-totvs" class="mt-6 panel p-5 text-sm">
           <p class="panel-title">Importação recusada pelo TOTVS?</p>
@@ -1131,8 +1134,8 @@
           </tr>`).join('') : '';
 
         show('.results', true);
-        if (cfg.aviso || (cfg.previa && (!regimeSel || data.dados_genericos))) aviso?.classList.remove('hidden');
-        if (cfg.fiscal && fiscal) { renderFiscal(fiscal, data); fiscal.classList.remove('hidden'); }
+        if (cfg.aviso || (cfg.previa && !regimeSel) || data.dados_genericos) aviso?.classList.remove('hidden');
+        if (cfg.fiscal && fiscal && !data.dados_genericos) { renderFiscal(fiscal, data); fiscal.classList.remove('hidden'); }
       } catch (err) {
         alert('Erro de conexão. Tente novamente.');
         show('.btn-processar', true);

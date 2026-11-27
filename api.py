@@ -258,7 +258,7 @@ async def processar_regras_ncm(
             })
 
         output_path = work_dir / "regras.xlsx"
-        write_regras(result.regras, output_path, _TEMPLATE_REGRAS, regime, uf, numero_loja.strip())
+        write_regras(result.regras, output_path, _TEMPLATE_REGRAS, result.regime, uf, numero_loja.strip())
         arquivo_b64 = base64.b64encode(output_path.read_bytes()).decode()
 
         arquivo_erros_b64 = None
@@ -285,6 +285,7 @@ async def processar_regras_ncm(
 
         return JSONResponse({
             "base_fiscal":      result.base_fiscal_disponivel,
+            "dados_genericos":  result.dados_genericos,
             "resumo_fiscal":    resumo_fiscal,
             "analise":          result.analise,
             "correcoes":        result.correcoes,

@@ -54,6 +54,7 @@ _COLS_FISCAIS = (_COL_NCM, _COL_CEST, _COL_TRIBUTO, _COL_IMPOSTO, _COL_CFOP, _CO
 
 _TIPO_ITEM_PADRAO = "00"  # Mercadoria para Revenda
 # Sugestão (só Simples) quando o cliente deixa o bloco fiscal em branco; espelha TEMPLATE_DEFAULTS de config.py
+_NCM_GENERICO = "21069090"
 _CFOP_PADRAO = "5102"
 _CFOP_ST = "5405"  # venda de mercadoria de terceiros sujeita a ICMS-ST (substituído tributário)
 _CSOSN_PADRAO = "102"
@@ -90,6 +91,8 @@ class ResultadoRegras:
     grupos_ncm: dict[str, dict[str, Any]] = field(default_factory=dict)   # NCM extinto → {opcoes, produtos} a trocar
     ncms_totvs: dict[str, dict[str, Any]] = field(default_factory=dict)   # NCM fora do TOTVS → {descricao, produtos}
     base_fiscal_disponivel: bool = False
+    regime: str = ""                # regime a gravar na planilha (o genérico é sempre do Simples)
+    dados_genericos: bool = False
 
 
 def _log(level: int, event: str, **kwargs: Any) -> None:
@@ -417,6 +420,18 @@ def _aplicar_pis_cofins(
     }
 
 
+def _regras_genericas(df: pd.DataFrame, regime: str, result: ResultadoRegras) -> ResultadoRegras:
+    """Planilha sem dados fiscais: uma única regra com o padrão do template (Simples) para todos os produtos."""
+    result.dados_genericos = True
+    result.regime = regime if regime in _SIMPLES else "1"
+    result.total_produtos = result.produtos_validos = sum(1 for _, row in df.iterrows() if _get(row, "NOME PRODUTO"))
+    if result.total_produtos:
+        result.regras = [RegraFiscal(_NCM_GENERICO, "", _TRIBUTO_PADRAO, 0.0, _CFOP_PADRAO, _CSOSN_PADRAO,
+                                     "", None, None, None)]
+    _log(logging.INFO, "regras_ncm_genericas", regime=regime, produtos=result.total_produtos)
+    return result
+
+
 def build_regras(
     df: pd.DataFrame,
     regime: str,
@@ -438,10 +453,13 @@ def build_regras(
     if regime not in REGIMES:
         raise ValueError(f"Regime inválido: {regime}")
 
+    result = ResultadoRegras(base_fiscal_disponivel=service is not None, regime=regime)
+    if not tem_dados_fiscais(df):
+        return _regras_genericas(df, regime, result)
+
     if _COL_NCM not in df.columns:
         raise ValueError("Coluna NCM não encontrada na planilha do cliente")
 
-    result = ResultadoRegras(base_fiscal_disponivel=service is not None)
     totvs_ativo = service is not None and service.has_totvs_catalog()
     vistos: dict[RegraFiscal, None] = {}
     escolhidos = cest_escolhidos or {}
