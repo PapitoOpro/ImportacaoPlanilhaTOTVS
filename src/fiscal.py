@@ -50,6 +50,8 @@ _COL_REDUCAO = "REDUCAO ICMS (%)"
 _COL_PIS = ("CST PIS", "PIS CALCULO", "ALIQUOTA PIS")
 _COL_COFINS = ("CST COFINS", "COFINS CALCULO", "ALIQUOTA COFINS")
 
+_COLS_FISCAIS = (_COL_NCM, _COL_CEST, _COL_TRIBUTO, _COL_IMPOSTO, _COL_CFOP, _COL_CST)
+
 _TIPO_ITEM_PADRAO = "00"  # Mercadoria para Revenda
 # Sugestão (só Simples) quando o cliente deixa o bloco fiscal em branco; espelha TEMPLATE_DEFAULTS de config.py
 _CFOP_PADRAO = "5102"
@@ -127,6 +129,11 @@ def _to_float(value: str) -> float | None:
 
 def _get(row: pd.Series, col: str) -> str:
     return _clean(row[col]) if col in row.index else ""
+
+
+def tem_dados_fiscais(df: pd.DataFrame) -> bool:
+    """False quando nenhuma linha traz NCM, CEST, tributo, ICMS, CFOP ou CST/CSOSN."""
+    return any(_clean(v) for col in _COLS_FISCAIS if col in df.columns for v in df[col])
 
 
 def _parse_contribuicao(

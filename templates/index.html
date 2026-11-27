@@ -1131,7 +1131,7 @@
           </tr>`).join('') : '';
 
         show('.results', true);
-        if (cfg.aviso || (cfg.previa && !regimeSel)) aviso?.classList.remove('hidden');
+        if (cfg.aviso || (cfg.previa && (!regimeSel || data.dados_genericos))) aviso?.classList.remove('hidden');
         if (cfg.fiscal && fiscal) { renderFiscal(fiscal, data); fiscal.classList.remove('hidden'); }
       } catch (err) {
         alert('Erro de conexão. Tente novamente.');

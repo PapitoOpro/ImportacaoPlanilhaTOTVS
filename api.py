@@ -20,8 +20,8 @@ from cnpj_api import build_router as build_cnpj_router
 from cnpj_service import CnpjService
 from config import (COLUMN_MAP, FIELD_FILL_DEFAULTS, FIELD_RULES,
                     REQUIRED_FIELDS, TEMPLATE_COLUMNS, TEMPLATE_DEFAULTS)
-from fiscal import (REGIMES, build_regras, validate_uf, write_analise_report, write_ncm_cadastrar_report,
-                    write_regras)
+from fiscal import (REGIMES, build_regras, tem_dados_fiscais, validate_uf, write_analise_report,
+                    write_ncm_cadastrar_report, write_regras)
 from fiscal_db import connect as connect_fiscal_db
 from fiscal_service import FiscalService
 from kb_api import build_router as build_kb_router
@@ -122,7 +122,12 @@ async def processar(
         df = read_client_file(input_path)
 
         fiscal = None
-        if regime:  # o produto herda a mesma regra fiscal validada da planilha de Regra NCM
+        dados_genericos = not tem_dados_fiscais(df)
+        if dados_genericos:  # sem nada para validar: vale o fiscal genérico do template, qualquer que seja o regime
+            logger.info(json.dumps({"event": "planilha_sem_dados_fiscais", "regime": regime}, ensure_ascii=False))
+            if previa:
+                return JSONResponse({"previa": True, "correcoes": [], "avisos": [], "grupos_cest": [], "grupos_ncm": []})
+        if regime and not dados_genericos:  # o produto herda a mesma regra fiscal validada da planilha de Regra NCM
             try:
                 fiscal = build_regras(
                     df, regime, service=_FISCAL,
@@ -176,6 +181,7 @@ async def processar(
                 for e in errors
             ],
             "correcoes":      correcoes,
+            "dados_genericos": dados_genericos,
             "avisos":         fiscal.avisos if fiscal else [],
             "arquivo":        arquivo_b64,
             "arquivo_erros":  arquivo_erros_b64,
